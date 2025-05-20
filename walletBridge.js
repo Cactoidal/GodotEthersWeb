@@ -2,11 +2,35 @@ window.walletBridge = {
 
 
   // WEB3 WALLET DIRECT INTERACTIONS 
-	getProvider: async function() {
-		window.provider = new window.ethers.BrowserProvider(window.ethereum);
-		window.signer = await window.provider.getSigner();
-		console.log(window.signer)
-	},
+
+  getBalance: async function(address, success, failure, callback) {
+    var provider = new window.ethers.BrowserProvider(window.ethereum);
+    
+    try {
+			const balance = await provider.getBalance(address);
+			success(balance, callback)
+		  } 
+
+    catch (_error) { 
+        console.error(_error); 
+        failure(_error.code, _error.message, callback)
+		  }
+  },
+
+  getWalletAddress: async function(success, failure, callback) {
+    var provider = new window.ethers.BrowserProvider(window.ethereum);
+    
+    try {
+      const signer = await provider.getSigner();
+			const address = await signer.getAddress();
+			success(address, callback)
+		  } 
+
+    catch (_error) { 
+        console.error(_error); 
+        failure(_error.code, _error.message, callback)
+		  }
+  },
 
 	request_accounts: async function() {
 	  window.account_list = await window.ethereum.request({ method: 'eth_requestAccounts' })
@@ -44,38 +68,6 @@ window.walletBridge = {
 
 
 // ETHERS INTERACTIONS
-
-	getSignerWrapper: async function  (signal, success, failure) { 
-	  window.provider = new window.ethers.BrowserProvider(window.ethereum);
-	  try {
-		window.signer = await window.provider.getSigner();
-		console.log(window.signer); 
-		success(signal, window.signer); } 
-		
-		catch (_error) { 
-		  console.error(_error); 
-		  err_dict = { 'code': _error.code, 'message': _error.message }; 
-		  failure(signal, err_dict); 
-		}
-	},
-
-	sendTransaction: async function (recipient, amount) {
-	  const tx = await window.signer.sendTransaction({
-		to: recipient,
-		value: window.ethers.parseEther(amount)
-	  });
-
-	},
-
-	sendTransaction2: async function (recipient, amount, success, failure) {
-	  window.provider = new window.ethers.BrowserProvider(window.ethereum);
-	  window.signer = await window.provider.getSigner();
-	  const tx = await window.signer.sendTransaction({
-		to: recipient,
-		value: window.ethers.parseEther(amount)
-	  });
-
-	},
 
 
   // ETH TRANSFER START
@@ -121,9 +113,6 @@ window.walletBridge = {
 
 
 
-
-
-
   // CONTRACT READ START
 
   initiateContractRead: async function(contract_address, abi, method, args, success, failure, callback) {
@@ -137,7 +126,7 @@ window.walletBridge = {
         to: contract_address,
         data: calldata,
         });
-        
+
         decoded = iface.decodeFunctionResult(method, result)
         success(decoded, callback); 
         } 
@@ -151,42 +140,6 @@ window.walletBridge = {
 
 
   // CONTRACT READ END
-
-
-
-
-	// Contract READ - probably 3 parts - starts here
-
-  //initiateContractRead: async function  (contract_address, ABI, success, failure, signal) { 
-  doContractRead: async function  (contract_address, ABI, success) { 
-	  var provider = new window.ethers.BrowserProvider(window.ethereum);
-	  var contract = new window.ethers.Contract(contract_address, ABI, provider)
-	  
-	  var sym = await contract.symbol()
-	  console.log(sym)
-
-	  var decimals = await contract.decimals()
-	  console.log(decimals)
-
-	  //The USDC contract has some LINK for some reason
-	  var balance = await contract.balanceOf("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
-	  console.log(balance)
-
-	  var balance_amount = window.ethers.formatUnits(balance, decimals)
-	  console.log(balance_amount)
-
-	  success(sym, decimals, balance, balance_amount)
-
-	},
-
-
-
-	// Contract READ - concludes here
-
-
-
-
-
 
 
 

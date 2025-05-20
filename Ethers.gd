@@ -28,7 +28,8 @@ func _ready():
 func connect_buttons():
 	$ConnectWallet.connect("pressed", connect_wallet)
 	$TestSend.connect("pressed", test_transfer)
-	$TestRead.connect("pressed", test_read)
+	$TestRead.connect("pressed", test_get_wallet_info)
+	#$TestRead.connect("pressed", test_read)
 	$TestWrite.connect("pressed", test_write)
 
 	
@@ -59,6 +60,15 @@ func read_result(callback):
 func test_write():
 	send_transaction(CHAINLINK_TOKEN_ADDRESS, ERC20, "transfer", ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "0"])
 
+	
+
+func test_get_wallet_info():
+	var callback = create_callback(self, "show_wallet_info")
+	get_connected_wallet_info(callback)
+
+func show_wallet_info(callback):
+	$Data.text = callback["address"]
+	$Data2.text = callback["balance"]
 
 
 
@@ -99,7 +109,8 @@ func send_transaction(
 			callback
 			)
 
-# "read_result" in the callback arrives as an array
+# "read_result" in the callback arrives as an array.
+# Access values with callback["read_result"][0], etc.
 func read_from_contract(
 	contract,
 	ABI,
@@ -118,8 +129,7 @@ func read_from_contract(
 			)
 
 
-func get_balance():
-	pass
+
 
 
 func sign_message():
@@ -132,6 +142,26 @@ func sign_structured():
 
 func sign_userOps():
 	pass
+
+
+# "read_result" in the callback arrives as a single
+# value, NOT as an array
+func get_connected_wallet_address(callback="{}"):
+	window.walletBridge.getWalletAddress(
+		got_read_callback, 
+		got_error_callback, 
+		callback
+		)
+
+# "read_result" in the callback arrives as a single
+# value, NOT as an array
+func get_gas_balance(address, callback="{}"):
+	window.walletBridge.getBalance(
+		address,
+		got_read_callback, 
+		got_error_callback, 
+		callback
+		)
 	
 
 ### WEB3 WALLET
@@ -148,7 +178,45 @@ func current_chain():
 func switch_chain(chain_id):
 	window.walletBridge.switch_chain(chain_id)
 
+
+
+## CONVENIENCE BUILT-INS
+
+
+# In your callback function, access the values via
+# callback["address"] and callback["balance"]
+func get_connected_wallet_info(_callback):
+	var callback = create_callback(self, "common_callback", {"type": "wallet_balance"})
 	
+	var old_callback = JSON.parse_string(_callback)
+	var new_callback = JSON.parse_string(callback)
+	
+	new_callback["cached_node"] = old_callback["callback_node"]
+	new_callback["cached_function"] = old_callback["callback_function"]
+	get_connected_wallet_address(str(new_callback))
+
+func common_callback(callback):
+	var callback_type = callback["type"]
+	match callback_type:
+		
+		"wallet_balance": 
+			callback["callback_function"] = "finish_wallet_info"
+			callback["address"] = callback["read_result"]
+			get_gas_balance(callback["address"], str(callback))
+
+
+func finish_wallet_info(callback):
+	callback["balance"] = callback["read_result"]
+	
+	var callback_function = callback["cached_function"]
+	var callback_node = deserialize_node_ref(callback["cached_node"])
+		
+	if callback_node:
+		callback_node.call(callback_function, callback)
+	
+	
+
+
 	
 ### ERC20 BUILT-INS
 
