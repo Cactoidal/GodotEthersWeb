@@ -24,12 +24,18 @@ func _ready():
 	load_and_attach(wallet_bridge_filepath)
 	connect_buttons()
 
+# A typical app would:
+# Check if ethereum is in the window
+# Check if the wallet is logged in
+# Get the connected wallet address and gas balance
+
 
 func connect_buttons():
 	$ConnectWallet.connect("pressed", connect_wallet)
 	$TestSend.connect("pressed", test_transfer)
-	$TestRead.connect("pressed", test_get_wallet_info)
+	#$TestRead.connect("pressed", test_get_wallet_info)
 	#$TestRead.connect("pressed", test_read)
+	$TestRead.connect("pressed", test_get_erc20_info)
 	$TestWrite.connect("pressed", test_write)
 
 	
@@ -53,22 +59,31 @@ func test_read():
 	read_from_contract(CHAINLINK_TOKEN_ADDRESS, ERC20, "name", [], callback)
 
 func read_result(callback):
-	var result = callback["read_result"]
+	var result = callback["result"]
 	$Data.text = result[0]
 
 	
 func test_write():
-	send_transaction(CHAINLINK_TOKEN_ADDRESS, ERC20, "transfer", ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "0"])
+	erc20_transfer(CHAINLINK_TOKEN_ADDRESS, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "0")
+	#send_transaction(CHAINLINK_TOKEN_ADDRESS, ERC20, "transfer", ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "0"])
 
 	
-
 func test_get_wallet_info():
 	var callback = create_callback(self, "show_wallet_info")
 	get_connected_wallet_info(callback)
 
 func show_wallet_info(callback):
-	$Data.text = callback["address"]
-	$Data2.text = callback["balance"]
+	$Data.text = callback["result"][0]
+	$Data2.text = callback["result"][1]
+
+
+func test_get_erc20_info():
+	var callback = create_callback(self, "show_erc20_info")
+	erc20_info(CHAINLINK_TOKEN_ADDRESS, callback)
+
+func show_erc20_info(callback):
+	$Data.text = callback["result"][0]
+	$Data2.text = callback["result"][3]
 
 
 
@@ -109,8 +124,8 @@ func send_transaction(
 			callback
 			)
 
-# "read_result" in the callback arrives as an array.
-# Access values with callback["read_result"][0], etc.
+# "result" in the callback arrives as an array.
+# Access values with callback["result"][0], etc.
 func read_from_contract(
 	contract,
 	ABI,
@@ -144,7 +159,7 @@ func sign_userOps():
 	pass
 
 
-# "read_result" in the callback arrives as a single
+# "result" in the callback arrives as a single
 # value, NOT as an array
 func get_connected_wallet_address(callback="{}"):
 	window.walletBridge.getWalletAddress(
@@ -153,7 +168,7 @@ func get_connected_wallet_address(callback="{}"):
 		callback
 		)
 
-# "read_result" in the callback arrives as a single
+# "result" in the callback arrives as a single
 # value, NOT as an array
 func get_gas_balance(address, callback="{}"):
 	window.walletBridge.getBalance(
@@ -162,6 +177,15 @@ func get_gas_balance(address, callback="{}"):
 		got_error_callback, 
 		callback
 		)
+	
+	
+	
+# Eth requests
+
+# Event Logging
+
+# RPC errors 
+	
 	
 
 ### WEB3 WALLET
@@ -182,46 +206,52 @@ func switch_chain(chain_id):
 
 ## CONVENIENCE BUILT-INS
 
+# Returns the wallet address and gas balance, accessible
+# at callback["result"][0] and callback["result"][1]
+func get_connected_wallet_info(callback="{}"):
+	window.walletBridge.getWalletInfo(
+		got_read_callback, 
+		got_error_callback, 
+		callback)
 
-# In your callback function, access the values via
-# callback["address"] and callback["balance"]
-func get_connected_wallet_info(_callback):
-	var callback = create_callback(self, "common_callback", {"type": "wallet_balance"})
-	
-	var old_callback = JSON.parse_string(_callback)
-	var new_callback = JSON.parse_string(callback)
-	
-	new_callback["cached_node"] = old_callback["callback_node"]
-	new_callback["cached_function"] = old_callback["callback_function"]
-	get_connected_wallet_address(str(new_callback))
-
-func common_callback(callback):
-	var callback_type = callback["type"]
-	match callback_type:
-		
-		"wallet_balance": 
-			callback["callback_function"] = "finish_wallet_info"
-			callback["address"] = callback["read_result"]
-			get_gas_balance(callback["address"], str(callback))
-
-
-func finish_wallet_info(callback):
-	callback["balance"] = callback["read_result"]
-	
-	var callback_function = callback["cached_function"]
-	var callback_node = deserialize_node_ref(callback["cached_node"])
-		
-	if callback_node:
-		callback_node.call(callback_function, callback)
-	
-	
 
 
 	
 ### ERC20 BUILT-INS
 
-func erc20_balanceOf():
-	pass
+# If no address is provided, it is presumed you want
+# the balanceOf the connected wallet.
+# Returns the token name, token symbol, token decimals,
+# and the balance of the provided address.
+func erc20_info(token_contract, callback="{}", address=""):
+	window.walletBridge.getERC20Info(
+		token_contract, 
+		JSON.stringify(ERC20), 
+		got_read_callback, 
+		got_error_callback, 
+		callback, 
+		address
+		)
+
+
+func erc20_transfer(token_contract, recipient, amount, callback="{}"):
+	send_transaction(
+		token_contract, 
+		ERC20, 
+		"transfer", 
+		[recipient, amount],
+		"0",
+		callback
+		)
+
+func erc20_balance(address, token_contract, callback="{}"):
+	read_from_contract(
+		token_contract, 
+		ERC20, 
+		"balanceOf", 
+		[address], 
+		callback
+		)
 
 func add_erc20():
 	pass
@@ -254,7 +284,7 @@ func write_callback(args):
 
 func read_callback(args):
 	var callback = JSON.parse_string(args[1])
-	callback["read_result"] = args[0]
+	callback["result"] = args[0]
 	do_callback(callback)
 
 func error_callback(args):
@@ -274,7 +304,17 @@ func do_callback(callback):
 				callback_node.call(callback_function, callback)
 			
 	
-
+func create_callback(callback_node, callback_function, callback_args={}):
+	
+	var callback = {
+		"callback_node": serialize_node_ref(callback_node),
+		"callback_function": callback_function,
+	}
+	
+	for key in callback_args.keys():
+		callback[key] = callback_args[key]
+	
+	return str(callback)
 
 
 
@@ -291,18 +331,6 @@ func load_script_from_file(path: String) -> String:
 		return file.get_as_text()
 	return ""
 
-
-
-func create_callback(callback_node, callback_function, callback_args={}):
-	var callback = {
-		"callback_node": serialize_node_ref(callback_node),
-		"callback_function": callback_function,
-	}
-	
-	for key in callback_args.keys():
-		callback[key] = callback_args[key]
-	
-	return str(callback)
 
 
 func serialize_node_ref(n):

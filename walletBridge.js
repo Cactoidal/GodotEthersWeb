@@ -32,6 +32,25 @@ window.walletBridge = {
 		  }
   },
 
+
+  getWalletInfo: async function(success, failure, callback) {
+    var provider = new window.ethers.BrowserProvider(window.ethereum);
+    
+    try {
+      const signer = await provider.getSigner();
+			const address = await signer.getAddress();
+      const balance = await provider.getBalance(address);
+			success([address, balance], callback)
+		  } 
+
+    catch (_error) { 
+        console.error(_error); 
+        failure(_error.code, _error.message, callback)
+		  }
+
+
+  },
+
 	request_accounts: async function() {
 	  window.account_list = await window.ethereum.request({ method: 'eth_requestAccounts' })
 	  console.log(window.account_list)
@@ -187,6 +206,43 @@ window.walletBridge = {
 },
 
   // CONTRACT WRITE END
+
+
+
+  // ERC20 INFO START
+
+  getERC20Info: async function (contract_address, ABI, success, failure, callback, address) { 
+	  var provider = new window.ethers.BrowserProvider(window.ethereum);
+	  var contract = new window.ethers.Contract(contract_address, ABI, provider)
+	  
+    console.log("hello")
+    try {
+      if (address === "") {
+        var signer = await provider.getSigner();
+        address = await signer.getAddress();
+      }
+
+
+      var name = await contract.name()
+
+      var sym = await contract.symbol()
+
+      var decimals = await contract.decimals()
+
+      var balance = await contract.balanceOf(address)
+
+      var balance_amount = window.ethers.formatUnits(balance, decimals)
+
+      success([name, sym, decimals, balance_amount], callback)
+  }
+    catch (_error) { 
+      console.error(_error); 
+      failure(_error.code, _error.message, callback)
+    }
+
+	},
+
+    // ERC20 INFO END
 
 
   };
