@@ -24,9 +24,9 @@ func _ready():
 	load_and_attach(wallet_bridge_filepath)
 	connect_buttons()
 
-# A typical app would:
+# On start-up or login, a typical app would:
 # Check if ethereum is in the window
-# Check if the wallet is logged in
+# Check if the wallet is logged in (or otherwise request connection)
 # Get the connected wallet address and gas balance
 
 
@@ -147,6 +147,8 @@ func read_from_contract(
 
 
 
+# TODO:
+
 func sign_message():
 	pass
 
@@ -157,6 +159,16 @@ func sign_structured():
 
 func sign_userOps():
 	pass
+	
+
+# Event Logging
+
+# Transaction polling
+
+# Recognizing RPC errors 
+
+# Raw eth_requests
+
 
 
 # "result" in the callback arrives as a single
@@ -179,14 +191,6 @@ func get_gas_balance(address, callback="{}"):
 		)
 	
 	
-	
-# Eth requests
-
-# Event Logging
-
-# RPC errors 
-	
-	
 
 ### WEB3 WALLET
 
@@ -206,6 +210,11 @@ func switch_chain(chain_id):
 
 ## CONVENIENCE BUILT-INS
 
+# Typical app login process
+func connection_sequence():
+	pass
+
+
 # Returns the wallet address and gas balance, accessible
 # at callback["result"][0] and callback["result"][1]
 func get_connected_wallet_info(callback="{}"):
@@ -216,7 +225,6 @@ func get_connected_wallet_info(callback="{}"):
 
 
 
-	
 ### ERC20 BUILT-INS
 
 # If no address is provided, it is presumed you want
@@ -303,9 +311,11 @@ func do_callback(callback):
 			if callback_node:
 				callback_node.call(callback_function, callback)
 			
-	
+
+# Callbacks are dictionaries converted into a string to make them easily
+# transportable through JavaScript.  They are eventually converted back 
+# into dictionaries using JSON.parse_string()
 func create_callback(callback_node, callback_function, callback_args={}):
-	
 	var callback = {
 		"callback_node": serialize_node_ref(callback_node),
 		"callback_function": callback_function,
@@ -333,6 +343,8 @@ func load_script_from_file(path: String) -> String:
 
 
 
+# For some reason NodePaths introduce a character unrecognizable to
+# JSON.parse_string, so they get serialized into base64.
 func serialize_node_ref(n):
 	var path = n.get_path()
 	var base64 = Marshalls.raw_to_base64( str(path).to_utf8_buffer() )
