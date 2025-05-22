@@ -1,7 +1,14 @@
 window.walletBridge = {
 
-
   // WEB3 WALLET DIRECT INTERACTIONS 
+
+  handleChainChanged: async function() {
+    console.log("chain changed")
+  },
+
+  handleAccountsChanged: async function() {
+    console.log("account changed")
+  },
 
   getBalance: async function(address, success, failure, callback) {
     var provider = new window.ethers.BrowserProvider(window.ethereum);
@@ -40,7 +47,8 @@ window.walletBridge = {
       const signer = await provider.getSigner();
 			const address = await signer.getAddress();
       const balance = await provider.getBalance(address);
-			success([address, balance], callback)
+      const chainId = await window.ethereum.request({method: "eth_chainId"})
+			success([address, balance, chainId], callback)
 		  } 
 
     catch (_error) { 
@@ -72,16 +80,54 @@ window.walletBridge = {
 	  console.log(window.chainId)
 	},
 
-	switch_chain: async function(_chainId) {
-	  await window.ethereum // Or window.ethereum if you don't support EIP-6963.
+	switch_chain: async function(_chainId, success, failure, callback) {
+	  
+    try {
+    await window.ethereum // Or window.ethereum if you don't support EIP-6963.
 	.request({
 	  method: "wallet_switchEthereumChain",
 	  params: [{ chainId: _chainId }],
-	})
+	  })
+    success(_chainId, callback)
+    }
+    catch (_error) { 
+		  console.error(_error); 
+		  failure(_error.code, _error.message, callback)
+		}
+
 	},
 
-  add_chain: async function() {
 
+
+  add_chain: async function(network_info, success, failure, callback, force_update) {
+  
+    try {
+      const network = JSON.parse(network_info)
+
+      await window.ethereum 
+        .request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: network.chainId,
+              chainName: network.chainName,
+              rpcUrls: network.rpcUrls,
+              nativeCurrency: network.nativeCurrency,
+              blockExplorerUrls: network.blockExplorerUrls
+            },
+          ],
+        })
+
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: network.chainId }],
+          })
+        success(network.chainId, callback)
+    }
+    catch (_error) { 
+		  console.error(_error); 
+		  failure(_error.code, _error.message, callback)
+		}
   },
 
 
@@ -91,13 +137,19 @@ window.walletBridge = {
 
   // ETH TRANSFER START
 
-  startTransferETH: async function(recipient, amount, success, failure, callback) {
+  startTransferETH: async function(_chainId, recipient, amount, success, failure, callback) {
     
-    var provider = new window.ethers.BrowserProvider(window.ethereum);
-	  
     try {
-		var signer = await provider.getSigner();
-		this.transferETH(signer, recipient, amount, success, failure, callback) 
+
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: _chainId }],
+        })
+      
+      var provider = new window.ethers.BrowserProvider(window.ethereum);
+
+      var signer = await provider.getSigner();
+      this.transferETH(signer, recipient, amount, success, failure, callback) 
         } 
 		
     catch (_error) { 
@@ -134,13 +186,21 @@ window.walletBridge = {
 
   // CONTRACT READ START
 
-  initiateContractRead: async function(contract_address, abi, method, args, success, failure, callback) {
-    
-    var provider = new window.ethers.BrowserProvider(window.ethereum);
-    const iface = new ethers.Interface(abi);
-    const calldata = iface.encodeFunctionData(method, args);
-	  
+  initiateContractRead: async function(_chainId, contract_address, abi, method, args, success, failure, callback) {
+      
     try {
+
+
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: _chainId }],
+          })
+        
+        var provider = new window.ethers.BrowserProvider(window.ethereum);
+        const iface = new window.ethers.Interface(abi);
+        const calldata = iface.encodeFunctionData(method, args);
+
+
         const result = await provider.call({
         to: contract_address,
         data: calldata,
@@ -166,11 +226,17 @@ window.walletBridge = {
   // CONTRACT WRITE START
 
 
-  initiateContractCall: async function(contract_address, abi, method, args, valueEth, success, failure, callback) {
-    
-    var provider = new window.ethers.BrowserProvider(window.ethereum);
-	  
+  initiateContractCall: async function(_chainId, contract_address, abi, method, args, valueEth, success, failure, callback) {
+	  console.log("what")
     try {
+
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: _chainId }],
+        })
+      
+      var provider = new window.ethers.BrowserProvider(window.ethereum);
+
       var signer = await provider.getSigner();
       this.callContractFunction(signer, contract_address, abi, method, args, valueEth, success, failure, callback) 
           } 
@@ -185,17 +251,28 @@ window.walletBridge = {
   callContractFunction: async function(signer, contract_address, abi, method, args, valueEth, success, failure, callback) {
 
     try {
-      const iface = new ethers.Interface(abi);
+      const iface = new window.ethers.Interface(abi);
       const calldata = iface.encodeFunctionData(method, args);
       console.log(calldata);
 
       const tx = await signer.sendTransaction({
         to: contract_address,
         data: calldata,
-        value: valueEth ? ethers.parseEther(valueEth) : 0
+        value: valueEth ? window.ethers.parseEther(valueEth) : 0
       });
       
-      success(tx, callback); 
+      success(JSON.stringify(tx), callback); 
+      
+      try {
+        const receipt = await tx.wait();
+        success(JSON.stringify(receipt), callback)
+      }
+      catch (_error) { 
+        console.error(_error); 
+        failure(_error.code, _error.message, callback)
+        }
+      
+
     } 
   
     catch (_error) { 
@@ -209,14 +286,113 @@ window.walletBridge = {
 
 
 
+  // SIGN MESSAGE START
+
+  signMessage: async function(message, success, failure, callback) {
+    
+    var provider = new window.ethers.BrowserProvider(window.ethereum);
+	  
+    try {
+      var signer = await provider.getSigner();
+
+      //const bytes = new TextEncoder().encode(message);
+
+      var signature = await signer.signMessage(message);
+      success(signature, callback)
+      } 
+		
+    catch (_error) { 
+		  console.error(_error); 
+		  failure(_error.code, _error.message, callback)
+		    }
+
+  },
+
+
+  // SIGN MESSAGE END
+
+
+
+  // SIGN TYPED START
+
+  signTyped: async function(domainJson, typesJson, valueJson, success, failure, callback) {
+    try {
+      const domain = JSON.parse(domainJson);
+      const types = JSON.parse(typesJson);
+      const value = JSON.parse(valueJson);
+
+      const provider = new window.ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      const signature = await signer.signTypedData(domain, types, value);
+      console.log("EIP-712 signature:", signature);
+      success(signature, callback)
+    } 
+    
+    catch (_error) { 
+		  console.error(_error); 
+		  failure(_error.code, _error.message, callback)
+		    }
+  },
+
+   // SIGN TYPED END
+
+
+  // LISTEN FOR EVENTS START
+
+  listenForEvent: async function(_chainId, contract_address, ABI, event, success, failure, callback) {
+	  
+
+    try {
+
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: _chainId }],
+        })
+      
+      var provider = new window.ethers.BrowserProvider(window.ethereum);
+      var contract = new window.ethers.Contract(contract_address, ABI, provider)
+
+      contract.on(event, (sender, value, event) => {
+        success(sender, value, event)
+      });
+
+      //contract.on(event, (sender, value, event) => {
+      //  console.log('MyEvent emitted: ', { sender, value });
+      //  console.log('Full event data: ', event);
+      //});
+
+      //success(event, callback)
+    } 
+    
+    catch (_error) { 
+		  console.error(_error); 
+		  failure(_error.code, _error.message, callback)
+		    }
+  },
+
+
+
+  // LISTEN FOR EVENTS END
+
+
+
+
+
   // ERC20 INFO START
 
-  getERC20Info: async function (contract_address, ABI, success, failure, callback, address) { 
-	  var provider = new window.ethers.BrowserProvider(window.ethereum);
-	  var contract = new window.ethers.Contract(contract_address, ABI, provider)
-	  
-    console.log("hello")
+  getERC20Info: async function (_chainId, contract_address, ABI, success, failure, callback, address) { 
+  
     try {
+
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: _chainId }],
+        })
+      
+      var provider = new window.ethers.BrowserProvider(window.ethereum);
+      var contract = new window.ethers.Contract(contract_address, ABI, provider)
+
       if (address === "") {
         var signer = await provider.getSigner();
         address = await signer.getAddress();
@@ -245,4 +421,12 @@ window.walletBridge = {
     // ERC20 INFO END
 
 
+  };
+
+
+  // Listening for changes from Wallet
+  // Not particularly consistent
+  if (window.ethereum) {
+    window.ethereum.on('accountsChanged', window.walletBridge.handleAccountsChanged);
+    window.ethereum.on('chainChanged', window.walletBridge.handleChainChanged);
   };
