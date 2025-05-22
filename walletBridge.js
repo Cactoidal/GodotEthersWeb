@@ -99,7 +99,7 @@ window.walletBridge = {
 
 
 
-  add_chain: async function(network_info, success, failure, callback, force_update) {
+  add_chain: async function(network_info, success, failure, callback) {
   
     try {
       const network = JSON.parse(network_info)
@@ -122,12 +122,44 @@ window.walletBridge = {
           method: "wallet_switchEthereumChain",
           params: [{ chainId: network.chainId }],
           })
-        success(network.chainId, callback)
+        success(callback)
     }
     catch (_error) { 
 		  console.error(_error); 
 		  failure(_error.code, _error.message, callback)
 		}
+  },
+
+
+
+  add_erc20: async function(_chainId, token_address, symbol, decimals, success, failure, callback) {
+    
+    try {
+
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: _chainId }],
+        })
+      
+        await window.ethereum.request({
+          method: 'wallet_watchAsset',
+          params: {
+            type: 'ERC20',
+            options: {
+              address: token_address, // Token contract address
+              symbol: symbol,                    // Token symbol (up to 5 chars)
+              decimals: decimals,                     // Token decimals
+              //image: 'https://example.com/token-icon.png', // (Optional) Token icon URL
+            },
+          },
+        });
+        success(callback)
+
+      }
+      catch (_error) { 
+        console.error(_error); 
+        failure(_error.code, _error.message, callback)
+        }
   },
 
 
@@ -342,7 +374,6 @@ window.walletBridge = {
 
   listenForEvent: async function(_chainId, contract_address, ABI, event, success, failure, callback) {
 	  
-
     try {
 
       await window.ethereum.request({
@@ -375,6 +406,33 @@ window.walletBridge = {
 
   // LISTEN FOR EVENTS END
 
+
+  // STOP LISTEN FOR EVENTS BEGIN
+
+  endEventListen: async function(_chainId, contract_address, ABI, success, failure, callback) {
+	  
+    try {
+
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: _chainId }],
+        })
+      
+      var provider = new window.ethers.BrowserProvider(window.ethereum);
+      var contract = new window.ethers.Contract(contract_address, ABI, provider)
+
+      contract.removeAllListeners();
+      success(callback)
+      }
+    catch (_error) { 
+		  console.error(_error); 
+		  failure(_error.code, _error.message, callback)
+		    }
+  },
+
+
+
+  // STOP LISTEN FOR EVENTS END
 
 
 
