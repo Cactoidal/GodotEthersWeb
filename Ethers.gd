@@ -1,11 +1,5 @@
 extends Control
 
-# When exporting, .js libraries (UMD version) are bundled into the .PCK file
-# using the export filter.  While the application is running, the libraries
-# are read from the .PCK file, and attached to the browser window 
-# with JavascriptBridge.eval().  Once attached, they can be called
-# from any other gdscript function.
-
 # Current Ethers version: 6.14.1
 # accessed at: window.ethers
 var ethers_filepath = "res://js/ethers.umd.min.js"
@@ -14,18 +8,7 @@ var ethers_filepath = "res://js/ethers.umd.min.js"
 # accessed at: window.walletBridge
 var wallet_bridge_filepath = "res://js/walletBridge.js"
 
-var test_recipient = "0x2Bd1324482B9036708a7659A3FCe20DfaDD455ba"
-
 var window = JavaScriptBridge.get_interface("window")
-
-var got_generic_callback = JavaScriptBridge.create_callback(generic_callback)
-var got_write_callback = JavaScriptBridge.create_callback(write_callback)
-var got_read_callback = JavaScriptBridge.create_callback(read_callback)
-var got_sign_callback = JavaScriptBridge.create_callback(sign_callback)
-var got_tx_callback = JavaScriptBridge.create_callback(tx_callback)
-var got_event_callback = JavaScriptBridge.create_callback(event_callback)
-var got_error_callback = JavaScriptBridge.create_callback(error_callback)
-
 
 var has_wallet = false
 var transaction_logs = []
@@ -35,172 +18,56 @@ var event_streams = []
 func _ready():
 	load_and_attach(ethers_filepath)
 	load_and_attach(wallet_bridge_filepath)
+	
+	#TEST
 	connect_buttons()
 
 	# Check if a webwallet is in the window
 	if window.ethereum:
 		has_wallet = true
-		
-
-# On start-up or login, a typical app would:
-# Check if ethereum is in the window
-# Check if the wallet is logged in (or otherwise request connection)
-# Get the connected wallet address, chainID, and gas balance,
-# storing this information locally
-
-# Then, before taking any actions, it should check whether
-# the user's metamask wallet has the network you plan to work with,
-# and prompt them to add the network if not
-
-
-func connect_buttons():
-	$ConnectWallet.connect("pressed", connect_wallet)
-	$TestSend.connect("pressed", test_transfer)
-	#$TestRead.connect("pressed", test_get_wallet_info)
-	#$TestRead.connect("pressed", test_read)
-	$TestRead.connect("pressed", test_get_erc20_info)
-	#$TestWrite.connect("pressed", test_sign)
-	#$TestWrite.connect("pressed", listen_test)
-	#$TestWrite.connect("pressed", example_format_typed)
-	#$TestWrite.connect("pressed", test_write)
-	$TestWrite.connect("pressed", test_add_erc20)
-	#$TestWrite.connect("pressed", test_add_chain)
 
 
 
-### TEST
+### WEB3 WALLET
 
-func test_add_chain():
-	add_chain("Ethereum Mainnet")
+# Wallet must be connected for most function calls to work
+func connect_wallet():
+	window.walletBridge.request_accounts()
 
-func test_transfer():
-	#var recipient = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
-	var amount = "0"
-	var callback_args = {"test": "OOoOOooOOoo"}
-	var network = "Sonic Mainnet"
-	#var network = "Ethereum Sepolia"
-		
-	var callback = create_callback(self, "transaction_callback", callback_args)
-	transfer(network, test_recipient, amount, callback)
-	
+# Returns the wallet address, gas balance, and chainId, accessible
+# at callback["result"][0], callback["result"][1], callback["result"][2]
+func get_connected_wallet_info(callback="{}"):
+	window.walletBridge.getWalletInfo(
+		got_read_callback, 
+		got_error_callback, 
+		callback)
 
-func transaction_callback(callback):
-	$Data.text = callback["test"]
-
-
-func test_read():
-	var network = "Ethereum Sepolia"
-	var token_address = default_network_info[network]["chainlinkToken"]
-	var callback = create_callback(self, "read_result")
-	read_from_contract(network, token_address, ERC20, "name", [], callback)
-
-func read_result(callback):
-	var result = callback["result"]
-	$Data.text = result[0]
-
-	
-func test_write():
-	var network = "Ethereum Mainnet"
-	var callback = create_callback(self, "show_receipt")
-	
-	var token_address = default_network_info[network]["chainlinkToken"]
-	
-	#erc20_transfer(network, token_address, test_recipient, "0", callback)
-	send_transaction(network, token_address, ERC20, "transfer", ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "0"])
-
-# Tx logging works, but I need to figure out
-# a graceful way to handle callbacks
-func show_receipt(callback):
-	var _tx_thing = callback["tx_hash"]
-	
-	var tx_thing = JSON.parse_string(_tx_thing)
-	
-	if "hash" in tx_thing.keys():
-		print(tx_thing["hash"])
-	else:
-		print(tx_thing["transactionHash"])
-
-	
-	
-func test_get_wallet_info():
-	var callback = create_callback(self, "show_wallet_info")
-	get_connected_wallet_info(callback)
-
-func show_wallet_info(callback):
-	$Data.text = callback["result"][0]
-	$Data2.text = callback["result"][1]
-	print(callback["result"][2])
+# Prompts wallet to add a specified chain and RPC
+func add_chain(network, callback="{}"):
+	var info = JSON.stringify(default_network_info[network])
+	window.walletBridge.add_chain(info, got_generic_callback, got_error_callback, callback)
 
 
-func test_get_erc20_info():
-	var network = "Ethereum Sepolia"
-	var callback = create_callback(self, "show_erc20_info")
-	var token_address = default_network_info[network]["chainlinkToken"]
-	
-	erc20_info(network, token_address, callback)
+# Manually getting the current chain and switching chains is often
+# unnecessary, as walletBridge is programmed to automatically switch
+# to whichever chain is specified during a function call
+func current_chain():
+	window.walletBridge.current_chain()
 
-func show_erc20_info(callback):
-	$Data.text = callback["result"][0]
-	$Data2.text = callback["result"][3]
-
-
-func test_sign():
-	var callback = create_callback(self, "show_signature")
-	
-	var message = "hello"
-	
-	sign_message(message, callback)
-
-
-func show_signature(callback):
-	$Data.text = callback["signature"]
-
-
-func test_add_erc20():
-	var network = "Ethereum Sepolia"
-	var token_address = default_network_info[network]["chainlinkToken"]
-	add_erc20(network, token_address, "LINK", 18)
+func switch_chain(chain_id, success, failure, callback):
+	window.walletBridge.switch_chain(chain_id, success, failure, callback)
 
 
 
-func listen_test():
-	var network = "Ethereum Mainnet"
-	var callback = create_callback(self, "show_event")
-	
-	var token_address = default_network_info[network]["chainlinkToken"]
-	
-	listen_for_event(network, token_address, JSON.stringify(ERC20), "Transfer", callback)
 
-func show_event(callback):
-	pass
+### BLOCKCHAIN INTERACTIONS AND SIGNING
 
+# TODO 
 
-func example_format_typed():
-	var domain := {
-		"name": "MyDapp",
-		"version": "1",
-		"chainId": 1,
-		"verifyingContract": "0xabc123abc123abc123abc123abc123abc123abcd"
-	}
-
-	var types := {
-		"Person": [
-			{ "name": "name", "type": "string" },
-			{ "name": "wallet", "type": "address" }
-		]
-	}
-
-	var value := {
-		"name": "Alice",
-		"wallet": "0xdef456def456def456def456def456def456def4"
-	}
-
-	var callback = create_callback(self, "show_signature")
-	sign_typed(domain, types, value, callback)
-
-
-
-### CORE FUNCTIONS
+# transfer and send_transaction both need a revision of how
+# their callback works; there needs to be a callback for successful
+# broadcast of the transaction, and an additional callback that
+# receives and transmits the transaction receipt 
 
 # Prompts wallet to sign an ETH transfer.
 func transfer(
@@ -247,6 +114,7 @@ func send_transaction(
 			callback
 			)
 
+
 # "result" in the callback arrives as an array.
 # Access values with callback["result"][0], etc.
 func read_from_contract(
@@ -283,8 +151,10 @@ func sign_message(message, callback="{}"):
 	)
 
 
+# EIP-712 signing
 # Expects domain, types, and value as dictionaries
-# For an example of how to format, see example_format_typed()
+# For an example of how to format, see example_format_typed() at the
+# bottom of this script
 func sign_typed(domain, types, value, callback="{}"):
 	window.walletBridge.signTyped(
 		JSON.stringify(domain),
@@ -298,9 +168,9 @@ func sign_typed(domain, types, value, callback="{}"):
 
 # TODO:
 
-# events and transactions need some testing
+# these functions are present but have not yet been tested
 
-func listen_for_event(network, contract, ABI, event, callback):
+func listen_for_event(network, contract, ABI, event, callback="{}"):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	
@@ -314,7 +184,7 @@ func listen_for_event(network, contract, ABI, event, callback):
 		callback
 	)
 
-func end_listen(network, contract, ABI, callback):
+func end_listen(network, contract, ABI, callback="{}"):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	
@@ -328,37 +198,18 @@ func end_listen(network, contract, ABI, callback):
 	)
 
 
+# "Transaction logs" and "event streams" are defined by providing
+# a callback node and a callback function.  Whenever a transaction receipt
+# or event is received, they will be transmitted to any registered 
+# logs/streams.  To stop transmitting, simply delete the node you no longer
+# want to use.
+
 func register_transaction_log(callback_node, callback_function):
 	transaction_logs.push_back([callback_node, callback_function])
 
-
-func transmit_transaction_object(transaction):
-	for log in transaction_logs:
-		var callback_node = log[0]
-		var callback_function = log[1]
-		
-		if is_instance_valid(callback_node):
-			callback_node.call(callback_function, transaction)
-		else:
-			transaction_logs.erase(log)
-
-
 func create_event_stream(callback_node, callback_function):
 	event_streams.push_back([callback_node, callback_function])
-
-func transmit_event(event):
-	for stream in event_streams:
-		var callback_node = stream[0]
-		var callback_function = stream[1]
-		
-		if is_instance_valid(callback_node):
-			callback_node.call(callback_function, event)
-		else:
-			event.erase(stream)
-
-
-
-
+	
 
 
 # "result" in the callback arrives as a single
@@ -381,38 +232,6 @@ func get_gas_balance(address, callback="{}"):
 		)
 	
 	
-
-### WEB3 WALLET
-
-func check_if_metamask():
-	$Data2.text = str(JavaScriptBridge.eval("window.ethereum.isMetaMask", true))
-
-func connect_wallet():
-	window.walletBridge.request_accounts()
-
-func current_chain():
-	window.walletBridge.current_chain()
-
-func switch_chain(chain_id, success, failure, callback):
-	window.walletBridge.switch_chain(chain_id, success, failure, callback)
-
-# Prompts wallet to add a specified chain and RPC
-func add_chain(network, callback="{}"):
-	var info = JSON.stringify(default_network_info[network])
-	window.walletBridge.add_chain(info, got_generic_callback, got_error_callback, callback)
-
-
-
-## CONVENIENCE BUILT-INS
-
-
-# Returns the wallet address, gas balance, and chainId, accessible
-# at callback["result"][0], callback["result"][1], callback["result"][2]
-func get_connected_wallet_info(callback="{}"):
-	window.walletBridge.getWalletInfo(
-		got_read_callback, 
-		got_error_callback, 
-		callback)
 
 
 
@@ -463,7 +282,6 @@ func erc20_balance(network, address, token_contract, callback="{}"):
 
 
 
-
 # Prompts wallet to add a specified token
 # It is probably good practice to link this function to
 # a deliberate "Add Token" button, rather than triggering it
@@ -486,6 +304,16 @@ func add_erc20(network, address, symbol, decimals, callback="{}"):
 
 
 ### CALLBACKS
+
+# TODO
+# This callback system could use some revision
+var got_generic_callback = JavaScriptBridge.create_callback(generic_callback)
+var got_write_callback = JavaScriptBridge.create_callback(write_callback)
+var got_read_callback = JavaScriptBridge.create_callback(read_callback)
+var got_sign_callback = JavaScriptBridge.create_callback(sign_callback)
+var got_tx_callback = JavaScriptBridge.create_callback(tx_callback)
+var got_event_callback = JavaScriptBridge.create_callback(event_callback)
+var got_error_callback = JavaScriptBridge.create_callback(error_callback)
 
 func generic_callback(args):
 	var callback = JSON.parse_string(args[0])
@@ -514,7 +342,7 @@ func tx_callback(args):
 func event_callback(args):
 	var callback = JSON.parse_string(args[1])
 	callback["event"] = args[0]
-	transmit_event(callback["event"])
+	transmit_event_object(callback["event"])
 
 func error_callback(args):
 	var callback = JSON.parse_string(args[2])
@@ -530,6 +358,28 @@ func error_callback(args):
 	
 	else:
 		do_callback(callback)
+
+
+func transmit_transaction_object(transaction):
+	for log in transaction_logs:
+		var callback_node = log[0]
+		var callback_function = log[1]
+		
+		if is_instance_valid(callback_node):
+			callback_node.call(callback_function, transaction)
+		else:
+			transaction_logs.erase(log)
+
+
+func transmit_event_object(event):
+	for stream in event_streams:
+		var callback_node = stream[0]
+		var callback_function = stream[1]
+		
+		if is_instance_valid(callback_node):
+			callback_node.call(callback_function, event)
+		else:
+			event.erase(stream)
 	
 
 func do_callback(callback):
@@ -565,9 +415,16 @@ func _add_value_to_callback(callback, key, value):
 	return str(parsed)
 
 
+
 ### UTILITY
 
-# Load JavaScript libraries from the .PCK file and attach 
+# When exporting, .js libraries (UMD version) are bundled into the .PCK file
+# using the export filter.  While the application is running, the libraries
+# are read from the .PCK file, and attached to the browser window 
+# with JavascriptBridge.eval().  Once attached, they can be called
+# from any other gdscript function.
+
+# Loads JavaScript libraries from the .PCK file and attaches 
 # them to the browser window
 func load_and_attach(path):
 	var attaching_script = load_script_from_file(path)
@@ -583,7 +440,7 @@ func load_script_from_file(path: String) -> String:
 
 
 # For some reason NodePaths introduce a character unrecognizable to
-# JSON.parse_string, so they get serialized into base64.
+# JSON.parse_string.  As a workaround, they get serialized into base64.
 func serialize_node_ref(n):
 	var path = n.get_path()
 	var base64 = Marshalls.raw_to_base64( str(path).to_utf8_buffer() )
@@ -1011,3 +868,156 @@ var ERC20 = [
 		"type": "function"
 	}
 ]
+
+
+
+
+### TEST
+
+
+func connect_buttons():
+	$ConnectWallet.connect("pressed", connect_wallet)
+	$TestSend.connect("pressed", test_transfer)
+	#$TestRead.connect("pressed", test_get_wallet_info)
+	#$TestRead.connect("pressed", test_read)
+	$TestRead.connect("pressed", test_get_erc20_info)
+	#$TestWrite.connect("pressed", test_sign)
+	#$TestWrite.connect("pressed", listen_test)
+	#$TestWrite.connect("pressed", example_format_typed)
+	$TestWrite.connect("pressed", test_write)
+	#$TestWrite.connect("pressed", test_add_erc20)
+	#$TestWrite.connect("pressed", test_add_chain)
+
+
+
+
+
+var test_recipient = "0x2Bd1324482B9036708a7659A3FCe20DfaDD455ba"
+
+func test_add_chain():
+	add_chain("Avalanche Mainnet")
+
+func test_transfer():
+	#var recipient = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+	var amount = "0"
+	var callback_args = {"test": "OOoOOooOOoo"}
+	var network = "Sonic Mainnet"
+	#var network = "Ethereum Sepolia"
+		
+	var callback = create_callback(self, "transaction_callback", callback_args)
+	transfer(network, test_recipient, amount, callback)
+	
+
+func transaction_callback(callback):
+	$Data.text = callback["test"]
+
+
+func test_read():
+	var network = "Ethereum Sepolia"
+	var token_address = default_network_info[network]["chainlinkToken"]
+	var callback = create_callback(self, "read_result")
+	read_from_contract(network, token_address, ERC20, "name", [], callback)
+
+func read_result(callback):
+	var result = callback["result"]
+	$Data.text = result[0]
+
+	
+func test_write():
+	var network = "Ethereum Mainnet"
+	var callback = create_callback(self, "show_receipt")
+	
+	var token_address = default_network_info[network]["chainlinkToken"]
+	
+	#erc20_transfer(network, token_address, test_recipient, "0", callback)
+	send_transaction(network, token_address, ERC20, "transfer", ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "0"])
+
+# Tx logging works, but I need to figure out
+# a graceful way to handle callbacks
+func show_receipt(callback):
+	var _tx_thing = callback["tx_hash"]
+	
+	var tx_thing = JSON.parse_string(_tx_thing)
+	
+	if "hash" in tx_thing.keys():
+		print(tx_thing["hash"])
+	else:
+		print(tx_thing["transactionHash"])
+
+	
+	
+func test_get_wallet_info():
+	var callback = create_callback(self, "show_wallet_info")
+	get_connected_wallet_info(callback)
+
+func show_wallet_info(callback):
+	$Data.text = callback["result"][0]
+	$Data2.text = callback["result"][1]
+	print(callback["result"][2])
+
+
+func test_get_erc20_info():
+	var network = "Ethereum Sepolia"
+	var callback = create_callback(self, "show_erc20_info")
+	var token_address = default_network_info[network]["chainlinkToken"]
+	
+	erc20_info(network, token_address, callback)
+
+func show_erc20_info(callback):
+	$Data.text = callback["result"][0]
+	$Data2.text = callback["result"][3]
+
+
+func test_sign():
+	var callback = create_callback(self, "show_signature")
+	
+	var message = "hello"
+	
+	sign_message(message, callback)
+
+
+func show_signature(callback):
+	$Data.text = callback["signature"]
+
+
+func test_add_erc20():
+	var network = "Ethereum Sepolia"
+	var token_address = default_network_info[network]["chainlinkToken"]
+	add_erc20(network, token_address, "LINK", 18)
+
+
+
+func listen_test():
+	var network = "Ethereum Mainnet"
+	var callback = create_callback(self, "show_event")
+	
+	var token_address = default_network_info[network]["chainlinkToken"]
+	
+	listen_for_event(network, token_address, JSON.stringify(ERC20), "Transfer", callback)
+
+func show_event(callback):
+	pass
+
+
+func example_format_typed():
+	var domain := {
+		"name": "MyDapp",
+		"version": "1",
+		"chainId": 1,
+		"verifyingContract": "0xabc123abc123abc123abc123abc123abc123abcd"
+	}
+
+	var types := {
+		"Person": [
+			{ "name": "name", "type": "string" },
+			{ "name": "wallet", "type": "address" }
+		]
+	}
+
+	var value := {
+		"name": "Alice",
+		"wallet": "0xdef456def456def456def456def456def456def4"
+	}
+
+	var callback = create_callback(self, "show_signature")
+	sign_typed(domain, types, value, callback)

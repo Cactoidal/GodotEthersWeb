@@ -256,7 +256,7 @@ window.walletBridge = {
 
 
   // CONTRACT WRITE START
-
+  
 
   initiateContractCall: async function(_chainId, contract_address, abi, method, args, valueEth, success, failure, callback) {
 	  console.log("what")
