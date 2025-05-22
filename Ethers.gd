@@ -15,6 +15,17 @@ var transaction_logs = []
 var event_streams = []
 
 
+# TODO
+
+# The callback/result system needs to be revised.  The JavaScript side
+# should be producing JSONs in all cases and sending them back 
+# to be parsed, instead of arrays.  Everything should be accessible in
+# "result" (maybe?)
+
+# Clean up walletBridge because it's a mess and there are functions
+# that can be rewritten more cleanly
+
+
 func _ready():
 	load_and_attach(ethers_filepath)
 	load_and_attach(wallet_bridge_filepath)
@@ -62,12 +73,6 @@ func switch_chain(chain_id, success, failure, callback):
 
 ### BLOCKCHAIN INTERACTIONS AND SIGNING
 
-# TODO 
-
-# transfer and send_transaction both need a revision of how
-# their callback works; there needs to be a callback for successful
-# broadcast of the transaction, and an additional callback that
-# receives and transmits the transaction receipt 
 
 # Prompts wallet to sign an ETH transfer.
 func transfer(
@@ -84,7 +89,8 @@ func transfer(
 			recipient, 
 			amount, 
 			got_write_callback, 
-			got_error_callback, 
+			got_error_callback,
+			got_tx_callback,
 			callback
 			)
 
@@ -107,10 +113,11 @@ func send_transaction(
 			contract, 
 			JSON.stringify(ABI), 
 			method, 
-			arr_to_js(parameters), 
+			arr_to_obj(parameters), 
 			value, 
 			got_write_callback, 
-			got_error_callback, 
+			got_error_callback,
+			got_tx_callback,
 			callback
 			)
 
@@ -133,7 +140,7 @@ func read_from_contract(
 			contract, 
 			JSON.stringify(ABI), 
 			method, 
-			arr_to_js(parameters), 
+			arr_to_obj(parameters), 
 			got_read_callback, 
 			got_error_callback, 
 			callback
@@ -166,10 +173,8 @@ func sign_typed(domain, types, value, callback="{}"):
 		)
 
 
-# TODO:
-
-# these functions are present but have not yet been tested
-
+# Sets a persistent provider to the window, bound to the provided network,
+# to be used by end_listen() whenever you want to stop the stream
 func listen_for_event(network, contract, ABI, event, callback="{}"):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
@@ -184,7 +189,8 @@ func listen_for_event(network, contract, ABI, event, callback="{}"):
 		callback
 	)
 
-func end_listen(network, contract, ABI, callback="{}"):
+
+func end_listen(network, contract, ABI, event, callback="{}"):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	
@@ -192,6 +198,7 @@ func end_listen(network, contract, ABI, callback="{}"):
 		chainId,
 		contract, 
 		ABI, 
+		event,
 		got_generic_callback, 
 		got_error_callback, 
 		callback
@@ -207,7 +214,7 @@ func end_listen(network, contract, ABI, callback="{}"):
 func register_transaction_log(callback_node, callback_function):
 	transaction_logs.push_back([callback_node, callback_function])
 
-func create_event_stream(callback_node, callback_function):
+func register_event_stream(callback_node, callback_function):
 	event_streams.push_back([callback_node, callback_function])
 	
 
@@ -335,14 +342,14 @@ func sign_callback(args):
 	do_callback(callback)
 
 func tx_callback(args):
-	var callback = JSON.parse_string(args[1])
-	callback["tx_receipt"] = args[0]
-	transmit_transaction_object(callback["tx_receipt"])
+	#var callback = JSON.parse_string(args[1])
+	var tx_receipt = args[0]
+	transmit_transaction_object(tx_receipt)
 
 func event_callback(args):
-	var callback = JSON.parse_string(args[1])
-	callback["event"] = args[0]
-	transmit_event_object(callback["event"])
+	#var callback = JSON.parse_string(args[1])
+	var event = args[0]
+	transmit_event_object(event)
 
 func error_callback(args):
 	var callback = JSON.parse_string(args[2])
@@ -421,7 +428,7 @@ func _add_value_to_callback(callback, key, value):
 # When exporting, .js libraries (UMD version) are bundled into the .PCK file
 # using the export filter.  While the application is running, the libraries
 # are read from the .PCK file, and attached to the browser window 
-# with JavascriptBridge.eval().  Once attached, they can be called
+# with JavaScriptBridge.eval().  Once attached, they can be called
 # from any other gdscript function.
 
 # Loads JavaScript libraries from the .PCK file and attaches 
@@ -455,7 +462,7 @@ func deserialize_node_ref(base64):
 
 
 # Convert from GDScript Array to JavaScript Array
-func arr_to_js(arr: Array) -> JavaScriptObject:
+func arr_to_obj(arr: Array) -> JavaScriptObject:
 	var val = JavaScriptBridge.create_object('Array', len(arr))
 	for i in range(len(arr)):
 		val[i] = arr[i]
@@ -883,12 +890,21 @@ func connect_buttons():
 	$TestRead.connect("pressed", test_get_erc20_info)
 	#$TestWrite.connect("pressed", test_sign)
 	#$TestWrite.connect("pressed", listen_test)
+	#$TestRead.connect("pressed", stop_listen_test)
 	#$TestWrite.connect("pressed", example_format_typed)
 	$TestWrite.connect("pressed", test_write)
 	#$TestWrite.connect("pressed", test_add_erc20)
 	#$TestWrite.connect("pressed", test_add_chain)
+	
+	register_transaction_log(self, "test_tx_receipt")
+	register_event_stream(self, "test_event_log")
 
 
+func test_tx_receipt(callback):
+	print(callback)
+
+func test_event_log(callback):
+	print(callback)
 
 
 
@@ -924,7 +940,7 @@ func read_result(callback):
 
 	
 func test_write():
-	var network = "Ethereum Mainnet"
+	var network = "Ethereum Sepolia"
 	var callback = create_callback(self, "show_receipt")
 	
 	var token_address = default_network_info[network]["chainlinkToken"]
@@ -997,6 +1013,13 @@ func listen_test():
 
 func show_event(callback):
 	pass
+
+
+func stop_listen_test():
+	var network = "Ethereum Mainnet"
+	var token_address = default_network_info[network]["chainlinkToken"]
+	var event = "Transfer"
+	end_listen(network, token_address, JSON.stringify(ERC20), event)
 
 
 func example_format_typed():

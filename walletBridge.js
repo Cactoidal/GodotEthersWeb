@@ -169,7 +169,7 @@ window.walletBridge = {
 
   // ETH TRANSFER START
 
-  startTransferETH: async function(_chainId, recipient, amount, success, failure, callback) {
+  startTransferETH: async function(_chainId, recipient, amount, success, failure, receiptCallback, callback) {
     
     try {
 
@@ -181,7 +181,7 @@ window.walletBridge = {
       var provider = new window.ethers.BrowserProvider(window.ethereum);
 
       var signer = await provider.getSigner();
-      this.transferETH(signer, recipient, amount, success, failure, callback) 
+      this.transferETH(signer, recipient, amount, success, failure, receiptCallback, callback) 
         } 
 		
     catch (_error) { 
@@ -191,7 +191,7 @@ window.walletBridge = {
 
   },
 
-  transferETH: async function(signer, recipient, amount, success, failure, callback) {
+  transferETH: async function(signer, recipient, amount, success, failure, receiptCallback, callback) {
 	  
     try {
       tx = await signer.sendTransaction(
@@ -201,7 +201,18 @@ window.walletBridge = {
         }
         );
         success(tx, callback); 
-        } 
+
+        try {
+          const receipt = await tx.wait();
+          console.log(receipt)
+          receiptCallback(JSON.stringify(receipt))
+        }
+        catch (_error) { 
+          console.error(_error); 
+          //receiptCallback(_error.code, _error.message)
+          }
+        
+        }
       
       catch (_error) { 
         console.error(_error); 
@@ -256,9 +267,9 @@ window.walletBridge = {
 
 
   // CONTRACT WRITE START
-  
 
-  initiateContractCall: async function(_chainId, contract_address, abi, method, args, valueEth, success, failure, callback) {
+
+  initiateContractCall: async function(_chainId, contract_address, abi, method, args, valueEth, success, failure, receiptCallback, callback) {
 	  console.log("what")
     try {
 
@@ -270,7 +281,7 @@ window.walletBridge = {
       var provider = new window.ethers.BrowserProvider(window.ethereum);
 
       var signer = await provider.getSigner();
-      this.callContractFunction(signer, contract_address, abi, method, args, valueEth, success, failure, callback) 
+      this.callContractFunction(signer, contract_address, abi, method, args, valueEth, success, failure, receiptCallback, callback) 
           } 
 		
     catch (_error) { 
@@ -280,7 +291,7 @@ window.walletBridge = {
 
   },
 
-  callContractFunction: async function(signer, contract_address, abi, method, args, valueEth, success, failure, callback) {
+  callContractFunction: async function(signer, contract_address, abi, method, args, valueEth, success, failure, receiptCallback, callback) {
 
     try {
       const iface = new window.ethers.Interface(abi);
@@ -297,11 +308,12 @@ window.walletBridge = {
       
       try {
         const receipt = await tx.wait();
-        success(JSON.stringify(receipt), callback)
+        console.log(receipt)
+        receiptCallback(JSON.stringify(receipt))
       }
       catch (_error) { 
         console.error(_error); 
-        failure(_error.code, _error.message, callback)
+        //receiptCallback(_error.code, _error.message)
         }
       
 
@@ -381,8 +393,16 @@ window.walletBridge = {
         params: [{ chainId: _chainId }],
         })
       
-      var provider = new window.ethers.BrowserProvider(window.ethereum);
-      var contract = new window.ethers.Contract(contract_address, ABI, provider)
+
+      if (!window.provider) {
+        window.provider = {}
+      }
+     
+      if (!(_chainId in window.provider)) {
+        window.provider[_chainId] = new window.ethers.BrowserProvider(window.ethereum)
+      }
+     
+     var contract = new window.ethers.Contract(contract_address, ABI, window.provider[_chainId])
 
       contract.on(event, (sender, value, event) => {
         success(sender, value, event)
@@ -409,7 +429,7 @@ window.walletBridge = {
 
   // STOP LISTEN FOR EVENTS BEGIN
 
-  endEventListen: async function(_chainId, contract_address, ABI, success, failure, callback) {
+  endEventListen: async function(_chainId, contract_address, ABI, event, success, failure, callback) {
 	  
     try {
 
@@ -418,10 +438,19 @@ window.walletBridge = {
         params: [{ chainId: _chainId }],
         })
       
-      var provider = new window.ethers.BrowserProvider(window.ethereum);
-      var contract = new window.ethers.Contract(contract_address, ABI, provider)
+      //var provider = new window.ethers.BrowserProvider(window.ethereum);
 
-      contract.removeAllListeners();
+      const iface = new window.ethers.Interface(ABI);
+      const fragment = iface.getEvent(event);
+      const signature = fragment.format(); // returns e.g., "MyEvent(address,uint256)"
+      const topic = window.ethers.id(signature);
+
+      const filter = {
+        address: contract_address,
+        topics: [topic]
+      };
+      
+      window.provider[_chainId].removeAllListeners(filter);
       success(callback)
       }
     catch (_error) { 
