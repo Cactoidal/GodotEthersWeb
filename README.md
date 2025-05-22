@@ -33,7 +33,9 @@ ___
 
 ## How to Use
 
-You'll want to connect `EthersWeb.connect_wallet()` to a button, prompting the user to connect.  The user must be connected for most functions to work.  Once the user has connected once, they won't need to connect again (unless they manually disconnect their wallet).  You can call `EthersWeb.get_connected_wallet_info()` if you want to display the user address, gas balance, and current chain.
+You'll want to connect `EthersWeb.connect_wallet()` to a button, prompting the user to connect.  The user must be connected for most functions to work.  Once the user has connected once, they won't need to connect again (unless they manually disconnect their wallet).  
+
+You can call `EthersWeb.get_connected_wallet_info()` if you want to display the user address, gas balance, and current chain.
 
 For blockchain operations, you can call `EthersWeb.transfer()`, `EthersWeb.send_transaction()`, and `EthersWeb.read_from_contract()`.  Basic ERC20 support has been built in, so you don't need to implement these functions yourself (see documentation).  You can also sign messages, sign typed data (ERC-712), and listen for events.
 
