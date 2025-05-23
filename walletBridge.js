@@ -1,6 +1,6 @@
 window.walletBridge = {
 
-  // WEB3 WALLET DIRECT INTERACTIONS 
+  // WEB3 WALLET 
 
   getBalance: async function(address, success, failure, callback) {
     var provider = new window.ethers.BrowserProvider(window.ethereum);
@@ -64,9 +64,15 @@ window.walletBridge = {
   },
 
 
-	current_chain: async function() {
-	  window.chainId = await window.ethereum.request({ method: 'eth_chainId' });
-	  console.log(window.chainId)
+	current_chain: async function(success, failure, callback) {
+    try {
+      chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      success(callback, chainId)
+      }
+    catch (_error) { 
+        console.error(_error); 
+        failure(callback, _error.code, _error.message)
+      }
 	},
 
 
@@ -137,8 +143,8 @@ window.walletBridge = {
             type: 'ERC20',
             options: {
               address: token_address, // Token contract address
-              symbol: symbol,                    // Token symbol (up to 5 chars)
-              decimals: decimals,                     // Token decimals
+              symbol: symbol,         // Token symbol (up to 5 chars)
+              decimals: decimals,     // Token decimals
               //image: 'https://example.com/token-icon.png', // (Optional) Token icon URL
             },
           },
@@ -157,7 +163,7 @@ window.walletBridge = {
 // ETHERS INTERACTIONS
 
 
-  // ETH TRANSFER START
+  // ETH TRANSFER
 
   startTransferETH: async function(_chainId, recipient, amount, success, failure, receiptCallback, callback) {
     
@@ -213,11 +219,10 @@ window.walletBridge = {
   },
 
 
-  // ETH TRANSFER END
 
 
 
-  // CONTRACT READ START
+  // CONTRACT READ 
 
   initiateContractRead: async function(_chainId, contract_address, abi, method, args, success, failure, callback) {
       
@@ -251,13 +256,10 @@ window.walletBridge = {
   },
 
 
-  // CONTRACT READ END
 
 
 
-
-  // CONTRACT WRITE START
-
+  // CONTRACT WRITE 
 
   initiateContractCall: async function(_chainId, contract_address, abi, method, args, valueEth, success, failure, receiptCallback, callback) {
 	  console.log("what")
@@ -305,8 +307,7 @@ window.walletBridge = {
         console.error(_error); 
         //receiptCallback(_error.code, _error.message)
         }
-      
-
+    
     } 
   
     catch (_error) { 
@@ -316,11 +317,11 @@ window.walletBridge = {
 
 },
 
-  // CONTRACT WRITE END
 
 
 
-  // SIGN MESSAGE START
+
+  // SIGN MESSAGE
 
   signMessage: async function(message, success, failure, callback) {
     
@@ -328,8 +329,6 @@ window.walletBridge = {
 	  
     try {
       var signer = await provider.getSigner();
-
-      //const bytes = new TextEncoder().encode(message);
 
       var signature = await signer.signMessage(message);
       success(callback, signature)
@@ -343,11 +342,10 @@ window.walletBridge = {
   },
 
 
-  // SIGN MESSAGE END
 
 
 
-  // SIGN TYPED START
+  // SIGN TYPED 
 
   signTyped: async function(domainJson, typesJson, valueJson, success, failure, callback) {
     try {
@@ -369,10 +367,11 @@ window.walletBridge = {
 		    }
   },
 
-   // SIGN TYPED END
 
 
-  // LISTEN FOR EVENTS START
+
+
+  // LISTEN FOR EVENTS 
 
   listenForEvent: async function(_chainId, contract_address, ABI, event, success, failure, callback) {
 	  
@@ -414,10 +413,9 @@ window.walletBridge = {
 
 
 
-  // LISTEN FOR EVENTS END
 
 
-  // STOP LISTEN FOR EVENTS BEGIN
+  // END EVENT LISTENING
 
   endEventListen: async function(_chainId, contract_address, ABI, event, success, failure, callback) {
 	  
@@ -449,12 +447,10 @@ window.walletBridge = {
 
 
 
-  // STOP LISTEN FOR EVENTS END
 
 
 
-
-  // ERC20 INFO START
+  // ERC20 INFO
 
   getERC20Info: async function (_chainId, contract_address, ABI, success, failure, callback, address) { 
   
@@ -493,7 +489,6 @@ window.walletBridge = {
 
 	},
 
-    // ERC20 INFO END
 
 
     // Triggered when user manually changes connected chain
@@ -512,7 +507,7 @@ window.walletBridge = {
   };
 
 
-  // Listening for changes from Wallet
+  // Listen for changes from wallet
   if (window.ethereum) {
     window.ethereum.on('accountsChanged', window.walletBridge.handleAccountsChanged);
     window.ethereum.on('chainChanged', window.walletBridge.handleChainChanged);

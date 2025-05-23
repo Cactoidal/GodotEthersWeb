@@ -15,12 +15,6 @@ var transaction_logs = []
 var event_streams = []
 
 
-# TODO
-
-# Clean up walletBridge because it's a mess and there are functions
-# that can be rewritten more cleanly
-
-
 func _ready():
 	load_and_attach(ethers_filepath)
 	load_and_attach(wallet_bridge_filepath)
@@ -57,8 +51,8 @@ func add_chain(network, callback="{}"):
 # Manually getting the current chain and switching chains is often
 # unnecessary, as walletBridge is programmed to automatically switch
 # to whichever chain is specified during a function call
-func current_chain():
-	window.walletBridge.current_chain()
+func current_chain(callback="{}"):
+	window.walletBridge.current_chain(success_callback, error_callback, callback)
 
 func switch_chain(chain_id, success, failure, callback):
 	window.walletBridge.switch_chain(chain_id, success, failure, callback)
@@ -67,7 +61,6 @@ func switch_chain(chain_id, success, failure, callback):
 
 
 ### BLOCKCHAIN INTERACTIONS AND SIGNING
-
 
 # Prompts wallet to sign an ETH transfer.
 func transfer(
@@ -157,7 +150,12 @@ func sign_message(message, callback="{}"):
 # Expects domain, types, and value as dictionaries
 # For an example of how to format, see example_format_typed() at the
 # bottom of this script
-func sign_typed(domain, types, value, callback="{}"):
+func sign_typed(
+	domain, 
+	types, 
+	value, 
+	callback="{}"
+	):
 	window.walletBridge.signTyped(
 		JSON.stringify(domain),
 		JSON.stringify(types),
@@ -170,7 +168,13 @@ func sign_typed(domain, types, value, callback="{}"):
 
 # Sets a persistent provider to the window, bound to the provided network,
 # to be used by end_listen() whenever you want to stop the stream
-func listen_for_event(network, contract, ABI, event, callback="{}"):
+func listen_for_event(
+	network, 
+	contract, 
+	ABI, 
+	event, 
+	callback="{}"
+	):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	
@@ -185,7 +189,13 @@ func listen_for_event(network, contract, ABI, event, callback="{}"):
 	)
 
 
-func end_listen(network, contract, ABI, event, callback="{}"):
+func end_listen(
+	network, 
+	contract, 
+	ABI, 
+	event, 
+	callback="{}"
+	):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	
@@ -232,8 +242,6 @@ func get_gas_balance(address, callback="{}"):
 		error_callback, 
 		callback
 		)
-	
-	
 
 
 
@@ -243,7 +251,12 @@ func get_gas_balance(address, callback="{}"):
 # the balanceOf the connected wallet.
 # Returns the token name, token symbol, token decimals,
 # and the balance of the provided address.
-func erc20_info(network, token_contract, callback="{}", address=""):
+func erc20_info(
+	network, 
+	token_contract, 
+	callback="{}", 
+	address=""
+	):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	
@@ -258,7 +271,13 @@ func erc20_info(network, token_contract, callback="{}", address=""):
 		)
 
 
-func erc20_transfer(network, token_contract, recipient, amount, callback="{}"):
+func erc20_transfer(
+	network, 
+	token_contract, 
+	recipient, 
+	amount, 
+	callback="{}"
+	):
 	send_transaction(
 		network,
 		token_contract, 
@@ -269,7 +288,12 @@ func erc20_transfer(network, token_contract, recipient, amount, callback="{}"):
 		callback
 		)
 
-func erc20_balance(network, address, token_contract, callback="{}"):
+func erc20_balance(
+	network, 
+	address, 
+	token_contract, 
+	callback="{}"
+	):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	
@@ -288,7 +312,13 @@ func erc20_balance(network, address, token_contract, callback="{}"):
 # It is probably good practice to link this function to
 # a deliberate "Add Token" button, rather than triggering it
 # without the user's input
-func add_erc20(network, address, symbol, decimals, callback="{}"):
+func add_erc20(
+	network, 
+	address, 
+	symbol, 
+	decimals, 
+	callback="{}"
+	):
 	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	
@@ -304,13 +334,13 @@ func add_erc20(network, address, symbol, decimals, callback="{}"):
 
 
 
-
 ### CALLBACKS
 
 var success_callback = JavaScriptBridge.create_callback(got_success_callback)
 var tx_callback = JavaScriptBridge.create_callback(got_tx_callback)
 var event_callback = JavaScriptBridge.create_callback(got_event_callback)
 var error_callback = JavaScriptBridge.create_callback(got_error_callback)
+
 
 func got_success_callback(args):
 	var callback = JSON.parse_string(args[0])
