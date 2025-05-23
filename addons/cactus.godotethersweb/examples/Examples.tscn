@@ -1,0 +1,74 @@
+[gd_scene load_steps=2 format=3 uid="uid://blcm880jc6ppo"]
+
+[ext_resource type="Script" uid="uid://dbgbii8yy4hki" path="res://addons/cactus.godotethersweb/examples/Examples.gd" id="1_knpgc"]
+
+[node name="Examples" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_knpgc")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.301961, 0.301961, 0.301961, 1)
+
+[node name="Data" type="Label" parent="."]
+layout_mode = 0
+offset_right = 694.0
+offset_bottom = 550.0
+text = "test"
+autowrap_mode = 3
+
+[node name="Data2" type="Label" parent="."]
+layout_mode = 0
+offset_top = 17.0
+offset_right = 694.0
+offset_bottom = 567.0
+text = "test"
+autowrap_mode = 3
+
+[node name="ConnectWallet" type="Button" parent="."]
+layout_mode = 0
+offset_left = 734.0
+offset_top = 53.0
+offset_right = 916.0
+offset_bottom = 107.0
+mouse_default_cursor_shape = 2
+text = "Connect Wallet
+"
+
+[node name="TestSend" type="Button" parent="."]
+layout_mode = 0
+offset_left = 734.0
+offset_top = 128.0
+offset_right = 916.0
+offset_bottom = 182.0
+mouse_default_cursor_shape = 2
+text = "Test Send"
+
+[node name="TestRead" type="Button" parent="."]
+layout_mode = 0
+offset_left = 734.0
+offset_top = 203.0
+offset_right = 916.0
+offset_bottom = 257.0
+mouse_default_cursor_shape = 2
+text = "Test Read"
+
+[node name="TestWrite" type="Button" parent="."]
+layout_mode = 0
+offset_left = 734.0
+offset_top = 278.0
+offset_right = 916.0
+offset_bottom = 332.0
+mouse_default_cursor_shape = 2
+text = "Test Write"
