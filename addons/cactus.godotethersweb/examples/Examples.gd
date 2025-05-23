@@ -1,5 +1,7 @@
 extends Control
 
+# This example is mostly complete.  A few revisions coming soon.
+
 @onready var ERC20 = Contract.ERC20
 
 var connected_wallet
