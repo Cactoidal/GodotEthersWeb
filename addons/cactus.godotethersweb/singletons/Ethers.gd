@@ -15,7 +15,7 @@ var transaction_logs = []
 var event_streams = []
 
 func _ready():
-	# JavaScript libraries are attached to the browser window on ready
+	# Scripts are attached to the browser window on ready
 	load_and_attach(ethers_filepath)
 	load_and_attach(wallet_bridge_filepath)
 
@@ -163,6 +163,9 @@ func sign_typed(
 
 # Sets a persistent provider to the window, bound to the provided network,
 # to be used by end_listen() whenever you want to stop the stream
+#TODO
+# Event listening needs to be generalized, the current JavaScript function
+# is written specifically for the ERC20 "Transfer" event
 func listen_for_event(
 	network, 
 	contract, 
@@ -178,8 +181,9 @@ func listen_for_event(
 		contract, 
 		ABI, 
 		event, 
+		success_callback, 
+		error_callback,
 		event_callback, 
-		error_callback, 
 		callback
 	)
 
@@ -338,6 +342,7 @@ var error_callback = JavaScriptBridge.create_callback(got_error_callback)
 
 
 func got_success_callback(args):
+	
 	var callback = JSON.parse_string(args[0])
 	if args.size() > 1:
 		callback["result"] = args[1]
@@ -349,12 +354,13 @@ func got_success_callback(args):
 
 func got_error_callback(args):
 	var callback = JSON.parse_string(args[0])
-	callback["error_code"] = args[1]
+	callback["error_code"] = str(args[1])
 	callback["error_message"] = args[2]
 	
+
 	# If the wallet doesn't have the network,
 	# prompt the user to add it
-	if callback["error_code"] == 4902:
+	if callback["error_code"] == "4902":
 		if "network" in callback.keys():
 			add_chain(callback["network"])
 	
@@ -366,9 +372,8 @@ func got_tx_callback(args):
 	var tx_receipt = args[0]
 	transmit_transaction_object(tx_receipt)
 
-func got_event_callback(args):
-	var event = args[0]
-	transmit_event_object(event)
+func got_event_callback(event):
+	transmit_event_object(event[0])
 
 
 func transmit_transaction_object(transaction):
@@ -472,8 +477,8 @@ func arr_to_obj(arr: Array) -> JavaScriptObject:
 		val[i] = arr[i]
 	return val
 
-# Dictionaries are easily transported by using JSON.stringify,
-# and then JSON.parse in JavaScript or JSON.parse_string in Godot
+# Dictionaries are transported by using JSON.stringify in Godot,
+# and then JSON.parse in JavaScript.
 
 
 ### NETWORK INFO
