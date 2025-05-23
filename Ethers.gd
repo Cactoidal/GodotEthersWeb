@@ -17,11 +17,6 @@ var event_streams = []
 
 # TODO
 
-# The callback/result system needs to be revised.  The JavaScript side
-# should be producing JSONs in all cases and sending them back 
-# to be parsed, instead of arrays.  Everything should be accessible in
-# "result" (maybe?)
-
 # Clean up walletBridge because it's a mess and there are functions
 # that can be rewritten more cleanly
 
@@ -42,21 +37,21 @@ func _ready():
 ### WEB3 WALLET
 
 # Wallet must be connected for most function calls to work
-func connect_wallet():
-	window.walletBridge.request_accounts()
+func connect_wallet(callback="{}"):
+	window.walletBridge.request_accounts(success_callback, error_callback, callback)
 
 # Returns the wallet address, gas balance, and chainId, accessible
 # at callback["result"][0], callback["result"][1], callback["result"][2]
 func get_connected_wallet_info(callback="{}"):
 	window.walletBridge.getWalletInfo(
-		got_read_callback, 
-		got_error_callback, 
+		success_callback, 
+		error_callback, 
 		callback)
 
 # Prompts wallet to add a specified chain and RPC
 func add_chain(network, callback="{}"):
 	var info = JSON.stringify(default_network_info[network])
-	window.walletBridge.add_chain(info, got_generic_callback, got_error_callback, callback)
+	window.walletBridge.add_chain(info, success_callback, error_callback, callback)
 
 
 # Manually getting the current chain and switching chains is often
@@ -88,9 +83,9 @@ func transfer(
 			chainId,
 			recipient, 
 			amount, 
-			got_write_callback, 
-			got_error_callback,
-			got_tx_callback,
+			success_callback, 
+			error_callback,
+			tx_callback,
 			callback
 			)
 
@@ -115,9 +110,9 @@ func send_transaction(
 			method, 
 			arr_to_obj(parameters), 
 			value, 
-			got_write_callback, 
-			got_error_callback,
-			got_tx_callback,
+			success_callback, 
+			error_callback,
+			tx_callback,
 			callback
 			)
 
@@ -141,8 +136,8 @@ func read_from_contract(
 			JSON.stringify(ABI), 
 			method, 
 			arr_to_obj(parameters), 
-			got_read_callback, 
-			got_error_callback, 
+			success_callback, 
+			error_callback, 
 			callback
 			)
 
@@ -152,8 +147,8 @@ func read_from_contract(
 func sign_message(message, callback="{}"):
 	window.walletBridge.signMessage(
 		message,
-		got_sign_callback, 
-		got_error_callback,
+		success_callback, 
+		error_callback,
 		callback 
 	)
 
@@ -167,8 +162,8 @@ func sign_typed(domain, types, value, callback="{}"):
 		JSON.stringify(domain),
 		JSON.stringify(types),
 		JSON.stringify(value),
-		got_sign_callback,
-		got_error_callback,
+		success_callback,
+		error_callback,
 		callback
 		)
 
@@ -184,8 +179,8 @@ func listen_for_event(network, contract, ABI, event, callback="{}"):
 		contract, 
 		ABI, 
 		event, 
-		got_event_callback, 
-		got_error_callback, 
+		event_callback, 
+		error_callback, 
 		callback
 	)
 
@@ -199,8 +194,8 @@ func end_listen(network, contract, ABI, event, callback="{}"):
 		contract, 
 		ABI, 
 		event,
-		got_generic_callback, 
-		got_error_callback, 
+		success_callback, 
+		error_callback, 
 		callback
 	)
 
@@ -223,8 +218,8 @@ func register_event_stream(callback_node, callback_function):
 # value, NOT as an array
 func get_connected_wallet_address(callback="{}"):
 	window.walletBridge.getWalletAddress(
-		got_read_callback, 
-		got_error_callback, 
+		success_callback, 
+		error_callback, 
 		callback
 		)
 
@@ -233,8 +228,8 @@ func get_connected_wallet_address(callback="{}"):
 func get_gas_balance(address, callback="{}"):
 	window.walletBridge.getBalance(
 		address,
-		got_read_callback, 
-		got_error_callback, 
+		success_callback, 
+		error_callback, 
 		callback
 		)
 	
@@ -256,8 +251,8 @@ func erc20_info(network, token_contract, callback="{}", address=""):
 		chainId,
 		token_contract, 
 		JSON.stringify(ERC20), 
-		got_read_callback, 
-		got_error_callback, 
+		success_callback, 
+		error_callback, 
 		callback, 
 		address
 		)
@@ -302,8 +297,8 @@ func add_erc20(network, address, symbol, decimals, callback="{}"):
 		address, 
 		symbol,
 		decimals, 
-		got_generic_callback, 
-		got_error_callback, 
+		success_callback, 
+		error_callback, 
 		callback
 		)
 
@@ -312,50 +307,25 @@ func add_erc20(network, address, symbol, decimals, callback="{}"):
 
 ### CALLBACKS
 
-# TODO
-# This callback system could use some revision
-var got_generic_callback = JavaScriptBridge.create_callback(generic_callback)
-var got_write_callback = JavaScriptBridge.create_callback(write_callback)
-var got_read_callback = JavaScriptBridge.create_callback(read_callback)
-var got_sign_callback = JavaScriptBridge.create_callback(sign_callback)
-var got_tx_callback = JavaScriptBridge.create_callback(tx_callback)
-var got_event_callback = JavaScriptBridge.create_callback(event_callback)
-var got_error_callback = JavaScriptBridge.create_callback(error_callback)
+var success_callback = JavaScriptBridge.create_callback(got_success_callback)
+var tx_callback = JavaScriptBridge.create_callback(got_tx_callback)
+var event_callback = JavaScriptBridge.create_callback(got_event_callback)
+var error_callback = JavaScriptBridge.create_callback(got_error_callback)
 
-func generic_callback(args):
+func got_success_callback(args):
 	var callback = JSON.parse_string(args[0])
-	do_callback(callback)
+	if args.size() > 1:
+		callback["result"] = args[1]
+	else:
+		callback["result"] = "success"
 	
-func write_callback(args):
-	var callback = JSON.parse_string(args[1])
-	callback["tx_hash"] = args[0]
 	do_callback(callback)
 
-func read_callback(args):
-	var callback = JSON.parse_string(args[1])
-	callback["result"] = args[0]
-	do_callback(callback)
 
-func sign_callback(args):
-	var callback = JSON.parse_string(args[1])
-	callback["signature"] = args[0]
-	do_callback(callback)
-
-func tx_callback(args):
-	#var callback = JSON.parse_string(args[1])
-	var tx_receipt = args[0]
-	transmit_transaction_object(tx_receipt)
-
-func event_callback(args):
-	#var callback = JSON.parse_string(args[1])
-	var event = args[0]
-	transmit_event_object(event)
-
-func error_callback(args):
-	var callback = JSON.parse_string(args[2])
-	callback["error_code"] = args[0]
-	callback["error_message"] = args[1]
-	
+func got_error_callback(args):
+	var callback = JSON.parse_string(args[0])
+	callback["error_code"] = args[1]
+	callback["error_message"] = args[2]
 	
 	# If the wallet doesn't have the network,
 	# prompt the user to add it
@@ -365,6 +335,17 @@ func error_callback(args):
 	
 	else:
 		do_callback(callback)
+
+
+func got_tx_callback(args):
+	#var callback = JSON.parse_string(args[1])
+	var tx_receipt = args[0]
+	transmit_transaction_object(tx_receipt)
+
+func got_event_callback(args):
+	#var callback = JSON.parse_string(args[1])
+	var event = args[0]
+	transmit_event_object(event)
 
 
 func transmit_transaction_object(transaction):
@@ -473,7 +454,6 @@ func arr_to_obj(arr: Array) -> JavaScriptObject:
 
 
 ### NETWORK INFO
-
 
 var default_network_info = {
 	
@@ -888,11 +868,11 @@ func connect_buttons():
 	#$TestRead.connect("pressed", test_get_wallet_info)
 	#$TestRead.connect("pressed", test_read)
 	$TestRead.connect("pressed", test_get_erc20_info)
-	#$TestWrite.connect("pressed", test_sign)
+	$TestWrite.connect("pressed", test_sign)
 	#$TestWrite.connect("pressed", listen_test)
 	#$TestRead.connect("pressed", stop_listen_test)
 	#$TestWrite.connect("pressed", example_format_typed)
-	$TestWrite.connect("pressed", test_write)
+	#$TestWrite.connect("pressed", test_write)
 	#$TestWrite.connect("pressed", test_add_erc20)
 	#$TestWrite.connect("pressed", test_add_chain)
 	
@@ -951,7 +931,7 @@ func test_write():
 # Tx logging works, but I need to figure out
 # a graceful way to handle callbacks
 func show_receipt(callback):
-	var _tx_thing = callback["tx_hash"]
+	var _tx_thing = callback["result"]
 	
 	var tx_thing = JSON.parse_string(_tx_thing)
 	
@@ -993,7 +973,7 @@ func test_sign():
 
 
 func show_signature(callback):
-	$Data.text = callback["signature"]
+	$Data.text = callback["result"]
 
 
 func test_add_erc20():

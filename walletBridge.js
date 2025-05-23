@@ -2,25 +2,17 @@ window.walletBridge = {
 
   // WEB3 WALLET DIRECT INTERACTIONS 
 
-  handleChainChanged: async function() {
-    console.log("chain changed")
-  },
-
-  handleAccountsChanged: async function() {
-    console.log("account changed")
-  },
-
   getBalance: async function(address, success, failure, callback) {
     var provider = new window.ethers.BrowserProvider(window.ethereum);
     
     try {
 			const balance = await provider.getBalance(address);
-			success(balance, callback)
+			success(callback, balance)
 		  } 
 
     catch (_error) { 
         console.error(_error); 
-        failure(_error.code, _error.message, callback)
+        failure(callback, _error.code, _error.message)
 		  }
   },
 
@@ -30,12 +22,12 @@ window.walletBridge = {
     try {
       const signer = await provider.getSigner();
 			const address = await signer.getAddress();
-			success(address, callback)
+			success(callback, address)
 		  } 
 
     catch (_error) { 
         console.error(_error); 
-        failure(_error.code, _error.message, callback)
+        failure(callback, _error.code, _error.message)
 		  }
   },
 
@@ -48,37 +40,35 @@ window.walletBridge = {
 			const address = await signer.getAddress();
       const balance = await provider.getBalance(address);
       const chainId = await window.ethereum.request({method: "eth_chainId"})
-			success([address, balance, chainId], callback)
+			success(callback, [address, balance, chainId])
 		  } 
 
     catch (_error) { 
         console.error(_error); 
-        failure(_error.code, _error.message, callback)
+        failure(callback, _error.code, _error.message)
 		  }
 
 
   },
 
-	request_accounts: async function() {
-	  window.account_list = await window.ethereum.request({ method: 'eth_requestAccounts' })
-	  console.log(window.account_list)
-  },
 
-  getAccounts: async function() {
-		try {
-			const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-			window.lastAccounts = accounts;
-		  } catch (e) {
-			console.error("MetaMask error:", e);
-			window.lastAccounts = null;
-		  }
-	},
+	request_accounts: async function(success, failure, callback) {
+    try {
+	  account_list = await window.ethereum.request({ method: 'eth_requestAccounts' })
+    success(callback, account_list)
+    }
+    catch (_error) { 
+		  console.error(_error); 
+		  failure(callback, _error.code, _error.message)
+		}
+  },
 
 
 	current_chain: async function() {
 	  window.chainId = await window.ethereum.request({ method: 'eth_chainId' });
 	  console.log(window.chainId)
 	},
+
 
 	switch_chain: async function(_chainId, success, failure, callback) {
 	  
@@ -88,11 +78,11 @@ window.walletBridge = {
 	  method: "wallet_switchEthereumChain",
 	  params: [{ chainId: _chainId }],
 	  })
-    success(_chainId, callback)
+    success(callback, _chainId)
     }
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		}
 
 	},
@@ -126,7 +116,7 @@ window.walletBridge = {
     }
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		}
   },
 
@@ -158,7 +148,7 @@ window.walletBridge = {
       }
       catch (_error) { 
         console.error(_error); 
-        failure(_error.code, _error.message, callback)
+        failure(callback, _error.code, _error.message)
         }
   },
 
@@ -186,7 +176,7 @@ window.walletBridge = {
 		
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		    }
 
   },
@@ -200,7 +190,7 @@ window.walletBridge = {
         value: window.ethers.parseEther(amount)
         }
         );
-        success(tx, callback); 
+        success(callback, tx); 
 
         try {
           const receipt = await tx.wait();
@@ -216,7 +206,7 @@ window.walletBridge = {
       
       catch (_error) { 
         console.error(_error); 
-        failure(_error.code, _error.message, callback)
+        failure(callback, _error.code, _error.message)
         }
 
 
@@ -250,12 +240,12 @@ window.walletBridge = {
         });
 
         decoded = iface.decodeFunctionResult(method, result)
-        success(decoded, callback); 
+        success(callback, decoded); 
         } 
 		
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		    }
 
   },
@@ -286,7 +276,7 @@ window.walletBridge = {
 		
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		    }
 
   },
@@ -304,7 +294,7 @@ window.walletBridge = {
         value: valueEth ? window.ethers.parseEther(valueEth) : 0
       });
       
-      success(JSON.stringify(tx), callback); 
+      success(callback, JSON.stringify(tx)); 
       
       try {
         const receipt = await tx.wait();
@@ -321,7 +311,7 @@ window.walletBridge = {
   
     catch (_error) { 
       console.error(_error); 
-      failure(_error.code, _error.message, callback)
+      failure(callback, _error.code, _error.message)
       }
 
 },
@@ -342,12 +332,12 @@ window.walletBridge = {
       //const bytes = new TextEncoder().encode(message);
 
       var signature = await signer.signMessage(message);
-      success(signature, callback)
+      success(callback, signature)
       } 
 		
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		    }
 
   },
@@ -370,12 +360,12 @@ window.walletBridge = {
 
       const signature = await signer.signTypedData(domain, types, value);
       console.log("EIP-712 signature:", signature);
-      success(signature, callback)
+      success(callback, signature)
     } 
     
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		    }
   },
 
@@ -418,7 +408,7 @@ window.walletBridge = {
     
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		    }
   },
 
@@ -437,12 +427,10 @@ window.walletBridge = {
         method: "wallet_switchEthereumChain",
         params: [{ chainId: _chainId }],
         })
-      
-      //var provider = new window.ethers.BrowserProvider(window.ethereum);
 
       const iface = new window.ethers.Interface(ABI);
       const fragment = iface.getEvent(event);
-      const signature = fragment.format(); // returns e.g., "MyEvent(address,uint256)"
+      const signature = fragment.format(); 
       const topic = window.ethers.id(signature);
 
       const filter = {
@@ -451,11 +439,11 @@ window.walletBridge = {
       };
       
       window.provider[_chainId].removeAllListeners(filter);
-      success(callback)
+      success(callback, topic)
       }
     catch (_error) { 
 		  console.error(_error); 
-		  failure(_error.code, _error.message, callback)
+		  failure(callback, _error.code, _error.message)
 		    }
   },
 
@@ -496,11 +484,11 @@ window.walletBridge = {
 
       var balance_amount = window.ethers.formatUnits(balance, decimals)
 
-      success([name, sym, decimals, balance_amount], callback)
+      success(callback, [name, sym, decimals, balance_amount])
   }
     catch (_error) { 
       console.error(_error); 
-      failure(_error.code, _error.message, callback)
+      failure(callback, _error.code, _error.message)
     }
 
 	},
@@ -508,11 +496,23 @@ window.walletBridge = {
     // ERC20 INFO END
 
 
+    // Triggered when user manually changes connected chain
+    // (but not when changing back)
+    handleChainChanged: async function() {
+      console.log("chain changed")
+    },
+  
+    // Triggered when user manually changes connected account
+    // (but not when changing back)
+    handleAccountsChanged: async function() {
+      console.log("account changed")
+    },
+
+
   };
 
 
   // Listening for changes from Wallet
-  // Not particularly consistent
   if (window.ethereum) {
     window.ethereum.on('accountsChanged', window.walletBridge.handleAccountsChanged);
     window.ethereum.on('chainChanged', window.walletBridge.handleChainChanged);
