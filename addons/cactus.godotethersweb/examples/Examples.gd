@@ -1,7 +1,5 @@
 extends Control
 
-# This example is mostly complete.  A few revisions coming soon.
-
 @onready var ERC20 = Contract.ERC20
 
 var connected_wallet
@@ -221,7 +219,15 @@ func test_tx_receipt(tx_receipt):
 
 
 func test_event_log(event):
-	print_log("Event: " + event["sender"] + " sent to\n" + event["value"])
+	print("hi")
+	var args = event.args
+	
+	var from = args.from
+	var to = args.to
+	var val = args.value
+	
+	var txt = from + " sent to " + to
+	print_log(txt)
 
 func print_log(txt):
 	$Log.text += txt + "\n___________________________________\n"

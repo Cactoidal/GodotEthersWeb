@@ -163,9 +163,6 @@ func sign_typed(
 
 # Sets a persistent provider to the window, bound to the provided network,
 # to be used by end_listen() whenever you want to stop the stream
-#TODO
-# Event listening needs to be generalized, the current JavaScript function
-# is written specifically for the ERC20 "Transfer" event
 func listen_for_event(
 	network, 
 	contract, 

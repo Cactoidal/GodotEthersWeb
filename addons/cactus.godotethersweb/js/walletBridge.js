@@ -44,6 +44,8 @@ window.walletBridge = {
       const info = {
         address: _address,
         chainId: _chainId,
+        // Unfortunately this is not ideal, since it is possible
+        // for a chain to have gas with decimals other than 18
         balance: window.ethers.formatUnits(_balance, 18)
       }
       console.log(info)
@@ -382,8 +384,6 @@ window.walletBridge = {
 
   // LISTEN FOR EVENTS 
 
-  // TO DO:
-  // This is written for a specific event ("Transfer") and is not yet generalized
   listenForEvent: async function(_chainId, contract_address, ABI, event, success, failure, eventCallback, callback) {
 	  
     try {
@@ -401,26 +401,25 @@ window.walletBridge = {
       if (!(_chainId in window.provider)) {
         window.provider[_chainId] = new window.ethers.BrowserProvider(window.ethereum)
       }
-     
-     var contract = new window.ethers.Contract(contract_address, ABI, window.provider[_chainId])
 
-      contract.on(event, (_sender, _value, event) => {
-        var event_info = {
-          sender: _sender,
-          value: _value,
-          log: event
-        }
-        console.log(event_info)
-        eventCallback(event_info)
+      const iface = new window.ethers.Interface(ABI);
+      const topic = iface.getEvent(event).topicHash;
+
+      console.log(topic)
+
+      const filter = {
+        address: contract_address,
+        topics: [topic]
+      };
+      
+      window.provider[_chainId].on(filter, (log) => {
+        const parsed = iface.parseLog(log);
+        console.log(parsed)
+        eventCallback(parsed)
       });
       success(callback);
+     
 
-      //contract.on(event, (sender, value, event) => {
-      //  console.log('MyEvent emitted: ', { sender, value });
-      //  console.log('Full event data: ', event);
-      //});
-
-      //success(event, callback)
     } 
     
     catch (_error) { 
