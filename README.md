@@ -21,6 +21,16 @@ ___
 * Inside the editor, open Project Settings, click Plugins, and activate GodotEthersWeb.
 
 * Restart the editor.
+
+* Click "Project", then "Export..."  If you have not yet done so, download the export templates, and click "Add..." to add the Web export template.
+
+* Click the "Resources" tab, and under "Filters to export non-resource files/folders" type: *.js
+
+* Click "Export Project..." to create the HTML5 build
+
+* To quickly test, you can open Project > Project Settings > Run, set the Main Scene to "res://addons/cactus.godotethersweb/examples/Examples.tscn", and then click the Remote Deploy button in the upper right corner of the main editor window.
+
+* OPTIONAL: If you want the .js files to be visible in the filesystem sidebar, click "Godot", open "Editor Settings", click "Advanced Settings", then go to Dock > Filesystem.  Under TextFile Extensions, add: js
 ___
 
 ## How to Use
