@@ -21,7 +21,7 @@ func connect_buttons():
 	$SendLink.connect("pressed", test_write)
 	$EventStart.connect("pressed", event_listen)
 	$EventStop.connect("pressed", stop_event_listen)
-
+	
 	#$AddERC20.connect("pressed", add_erc20)
 	#$AddChain.connect("pressed", add_chain)
 	
@@ -208,17 +208,6 @@ func stopped_listen(callback):
 	$ListenNotice.visible = false
 
 
-
-
-func add_chain():
-	EthersWeb.add_chain("Avalanche Mainnet")
-
-func add_erc20():
-	var network = "Ethereum Sepolia"
-	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
-	EthersWeb.add_erc20(network, token_address, "LINK", 18)
-
-
 func receive_tx_receipt(tx_receipt):
 
 	var hash = tx_receipt["hash"]
@@ -257,3 +246,12 @@ func has_error(callback):
 		var txt = "Error " + str(callback["error_code"]) + ": " + callback["error_message"]
 		print_log(txt)
 		return true
+
+
+func add_chain():
+	EthersWeb.add_chain("Avalanche Mainnet")
+
+func add_erc20():
+	var network = "Ethereum Sepolia"
+	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
+	EthersWeb.add_erc20(network, token_address, "LINK", 18)
