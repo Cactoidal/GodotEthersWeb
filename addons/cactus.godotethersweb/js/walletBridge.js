@@ -574,14 +574,14 @@ window.walletBridge = {
       }
 
       if (Array.isArray(input)) {
-        return input.map(this.convertBigIntsToStrings);
+        return input.map(walletBridge.convertBigIntsToStrings);
       }
 
       if (typeof input === 'object' && input !== null) {
         const result = {};
         for (const key in input) {
           if (Object.prototype.hasOwnProperty.call(input, key)) {
-            result[key] = this.convertBigIntsToStrings(input[key]);
+            result[key] = walletBridge.convertBigIntsToStrings(input[key]);
           }
         }
         return result;
