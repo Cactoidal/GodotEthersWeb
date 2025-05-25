@@ -269,23 +269,6 @@ func erc20_info(
 		)
 
 
-func erc20_transfer(
-	network, 
-	token_contract, 
-	recipient, 
-	amount, 
-	callback="{}"
-	):
-	send_transaction(
-		network,
-		token_contract, 
-		Contract.ERC20, 
-		"transfer", 
-		[recipient, amount],
-		"0",
-		callback
-		)
-
 func erc20_balance(
 	network, 
 	address, 
@@ -303,6 +286,48 @@ func erc20_balance(
 		[address], 
 		callback
 		)
+
+
+func erc20_approve(
+	network, 
+	token_contract, 
+	spender_address, 
+	amount, 
+	callback="{}"
+	):
+		
+	if amount in ["MAX", "MAXIMUM"]:
+		amount = "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+	
+	send_transaction(
+		network,
+		token_contract, 
+		Contract.ERC20, 
+		"approve", 
+		[spender_address, amount],
+		"0",
+		callback
+		)
+
+
+func erc20_transfer(
+	network, 
+	token_contract, 
+	recipient, 
+	amount, 
+	callback="{}"
+	):
+	send_transaction(
+		network,
+		token_contract, 
+		Contract.ERC20, 
+		"transfer", 
+		[recipient, amount],
+		"0",
+		callback
+		)
+
+
 
 
 

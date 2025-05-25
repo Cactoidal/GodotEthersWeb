@@ -169,7 +169,7 @@ func test_write():
 	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
 	
 	# This commented function does the same thing 
-	#erc20_transfer(network, token_address, test_recipient, "0", callback)
+	#EthersWeb.erc20_transfer(network, token_address, test_recipient, "0", callback)
 	EthersWeb.send_transaction(network, token_address, ERC20, "transfer", [test_recipient, amount], "0", callback)
 
 
