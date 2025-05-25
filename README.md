@@ -26,7 +26,7 @@ ___
 
 * Click the "Resources" tab, and under "Filters to export non-resource files/folders" type: *.js
 
-* Click "Export Project..." to create the HTML5 build
+* Click "Export Project..." to create the HTML5 build.
 
 * To quickly test, you can open Project > Project Settings > Run, set the Main Scene to "res://addons/cactus.godotethersweb/examples/Examples.tscn", and then click the Remote Deploy button in the upper right corner of the main editor window.
 
