@@ -361,8 +361,14 @@ window.walletBridge = {
 
   // SIGN TYPED 
 
-  signTyped: async function(domainJson, typesJson, valueJson, success, failure, callback) {
+  signTyped: async function(_chainId, domainJson, typesJson, valueJson, success, failure, callback) {
     try {
+
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: _chainId }],
+        })
+
       const domain = JSON.parse(domainJson);
       const types = JSON.parse(typesJson);
       const value = JSON.parse(valueJson);

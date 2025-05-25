@@ -117,10 +117,13 @@ func sign_message():
 
 
 func example_format_typed():
+	var network = "Ethereum Sepolia"
+	var chainId = EthersWeb.default_network_info[network]["chainId"]
+	
 	var domain := {
 		"name": "GodotEthersWeb",
 		"version": "1",
-		"chainId": 1,
+		"chainId": chainId,
 		"verifyingContract": "0xabc123abc123abc123abc123abc123abc123abcd"
 	}
 
@@ -138,7 +141,7 @@ func example_format_typed():
 
 	var callback = EthersWeb.create_callback(self, "show_signature")
 	
-	EthersWeb.sign_typed(domain, types, value, callback)
+	EthersWeb.sign_typed(chainId, domain, types, value, callback)
 
 
 func show_signature(callback):

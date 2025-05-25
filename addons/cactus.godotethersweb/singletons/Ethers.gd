@@ -146,12 +146,14 @@ func sign_message(message, callback="{}"):
 # To see what this looks like, check out example_format_typed() 
 # in Examples.gd 
 func sign_typed(
+	chainId,
 	domain, 
 	types, 
 	value, 
 	callback="{}"
 	):
 	window.walletBridge.signTyped(
+		chainId,
 		JSON.stringify(domain),
 		JSON.stringify(types),
 		JSON.stringify(value),
