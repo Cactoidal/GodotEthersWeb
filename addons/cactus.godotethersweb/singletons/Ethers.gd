@@ -164,8 +164,9 @@ func sign_typed(
 # Sets a persistent provider to the window, bound to the provided network,
 # to be used by end_listen() whenever you want to stop the stream
 func listen_for_event(
-	network, 
-	contract, 
+	network,
+	wss_node, 
+	contract,
 	ABI, 
 	event, 
 	callback="{}"
@@ -175,6 +176,7 @@ func listen_for_event(
 	
 	window.walletBridge.listenForEvent(
 		chainId,
+		wss_node,
 		contract, 
 		ABI, 
 		event, 

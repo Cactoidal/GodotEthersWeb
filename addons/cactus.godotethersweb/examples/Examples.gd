@@ -180,13 +180,30 @@ func transaction_callback(callback):
 	print_log("Tx Hash: " + callback["result"]["hash"])
 
 
+
+func receive_tx_receipt(tx_receipt):
+
+	var hash = tx_receipt["hash"]
+	var status = str(tx_receipt["status"])
+	
+	var txt = "Tx: " + hash + "\nStatus: " + status
+	
+	if status == "1":
+		var blockNumber = str(tx_receipt["blockNumber"])
+		txt += "\nIncluded in block " + blockNumber
+	
+	print_log(txt)
+
+
 func event_listen():
 	var network = "Ethereum Mainnet"
+	var wss_node = "wss://ethereum-rpc.publicnode.com"
 	var callback = EthersWeb.create_callback(self, "show_listen")
 	
 	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
 	
-	EthersWeb.listen_for_event(network, token_address, JSON.stringify(ERC20), "Transfer", callback)
+	EthersWeb.listen_for_event(network, wss_node, token_address, JSON.stringify(ERC20), "Transfer", callback)
+
 
 func show_listen(callback):
 	if has_error(callback):
@@ -206,21 +223,6 @@ func stopped_listen(callback):
 	if has_error(callback):
 		return
 	$ListenNotice.visible = false
-
-
-func receive_tx_receipt(tx_receipt):
-
-	var hash = tx_receipt["hash"]
-	var status = str(tx_receipt["status"])
-	
-	var txt = "Tx: " + hash + "\nStatus: " + status
-	
-	if status == "1":
-		var blockNumber = str(tx_receipt["blockNumber"])
-		txt += "\nIncluded in block " + blockNumber
-	
-	print_log(txt)
-	
 
 
 func receive_event_log(args):

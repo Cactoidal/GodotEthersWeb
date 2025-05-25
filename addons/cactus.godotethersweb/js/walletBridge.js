@@ -387,7 +387,7 @@ window.walletBridge = {
 
   // LISTEN FOR EVENTS 
 
-  listenForEvent: async function(_chainId, contract_address, ABI, event, success, failure, eventCallback, callback) {
+  listenForEvent: async function(_chainId, wss_node, contract_address, ABI, event, success, failure, eventCallback, callback) {
 	  
     try {
 
@@ -402,7 +402,8 @@ window.walletBridge = {
       }
      
       if (!(_chainId in window.provider)) {
-        window.provider[_chainId] = new window.ethers.BrowserProvider(window.ethereum)
+        window.provider[_chainId] = new window.ethers.WebSocketProvider(wss_node)
+        //window.provider[_chainId] = new window.ethers.BrowserProvider(window.ethereum)
       }
 
       const iface = new window.ethers.Interface(ABI);
