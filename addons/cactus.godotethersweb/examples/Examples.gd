@@ -11,29 +11,29 @@ func _ready():
 	connect_buttons()
 
 func connect_buttons():
-	$ConnectWallet.connect("pressed", test_connect)
-	$WalletInfo.connect("pressed", test_get_wallet_info)
-	$ContractRead.connect("pressed", test_read)
-	$ERC20Info.connect("pressed", test_get_erc20_info)
-	$Sign.connect("pressed", test_sign)
+	$ConnectWallet.connect("pressed", connect_wallet)
+	$WalletInfo.connect("pressed", get_wallet_info)
+	$ContractRead.connect("pressed", read_from_contract)
+	$ERC20Info.connect("pressed", get_erc20_info)
+	$Sign.connect("pressed", sign_message)
 	$SignTyped.connect("pressed", example_format_typed)
 	$Transfer.connect("pressed", test_transfer)
 	$SendLink.connect("pressed", test_write)
-	$EventStart.connect("pressed", listen_test)
-	$EventStop.connect("pressed", stop_listen_test)
+	$EventStart.connect("pressed", event_listen)
+	$EventStop.connect("pressed", stop_event_listen)
 
-	#$TestWrite.connect("pressed", test_add_erc20)
-	#$TestWrite.connect("pressed", test_add_chain)
+	#$AddERC20.connect("pressed", add_erc20)
+	#$AddChain.connect("pressed", add_chain)
 	
-	EthersWeb.register_transaction_log(self, "test_tx_receipt")
-	EthersWeb.register_event_stream(self, "test_event_log")
+	EthersWeb.register_transaction_log(self, "receive_tx_receipt")
+	EthersWeb.register_event_stream(self, "receive_event_log")
 
 
-func test_connect():
-	var callback = EthersWeb.create_callback(self, "get_account_list")
+func connect_wallet():
+	var callback = EthersWeb.create_callback(self, "got_account_list")
 	EthersWeb.connect_wallet(callback)
 
-func get_account_list(callback):
+func got_account_list(callback):
 	if has_error(callback):
 		return
 		
@@ -42,7 +42,7 @@ func get_account_list(callback):
 	
 
 
-func test_get_wallet_info():
+func get_wallet_info():
 	var callback = EthersWeb.create_callback(self, "show_wallet_info")
 	EthersWeb.get_connected_wallet_info(callback)
 
@@ -59,28 +59,39 @@ func show_wallet_info(callback):
 
 
 
-func test_read():
+func read_from_contract():
 	var network = "Ethereum Sepolia"
 	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
-	var callback = EthersWeb.create_callback(self, "read_result")
+	
+	# You can send key:value pairs in your callback, to be used
+	# in the callback function
+	var callback = EthersWeb.create_callback(self, "got_name", {"token_address": token_address, "network": network})
+	
 	EthersWeb.read_from_contract(network, token_address, ERC20, "name", [], callback)
+	
 
-func read_result(callback):
+func got_name(callback):
 	if has_error(callback):
 		return
 		
-	var result = callback["result"]
 	# Contract reads always come back as an array
-	print_log(result[0])
+	var token_name = callback["result"][0]
+	
+	# Using callback values
+	var network = callback["network"]
+	var token_address = callback["token_address"]
+	
+	print_log("ERC20 Token " + token_address + " on " + network + " is named " + token_name)
 
 
-
-func test_get_erc20_info():
+func get_erc20_info():
 	var network = "Ethereum Sepolia"
 	var callback = EthersWeb.create_callback(self, "show_erc20_info")
 	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
 	
 	EthersWeb.erc20_info(network, token_address, callback)
+
+
 
 func show_erc20_info(callback):
 	if has_error(callback):
@@ -97,7 +108,7 @@ func show_erc20_info(callback):
 
 
 
-func test_sign():
+func sign_message():
 	var callback = EthersWeb.create_callback(self, "show_signature")
 	
 	var message = "Hello from Godot!"
@@ -126,6 +137,7 @@ func example_format_typed():
 	}
 
 	var callback = EthersWeb.create_callback(self, "show_signature")
+	
 	EthersWeb.sign_typed(domain, types, value, callback)
 
 
@@ -138,6 +150,9 @@ func show_signature(callback):
 
 
 func test_transfer():
+	
+	# Note that numbers are always passed as strings.  To convert from
+	# decimal to BigNumber format, use EthersWeb.convert_to_bignum()
 	var amount = "0"
 	var network = "Ethereum Sepolia"
 		
@@ -147,6 +162,7 @@ func test_transfer():
 
 
 func test_write():
+	var amount = "0"
 	var network = "Ethereum Sepolia"
 	var callback = EthersWeb.create_callback(self, "transaction_callback")
 	
@@ -154,7 +170,7 @@ func test_write():
 	
 	# This commented function does the same thing 
 	#erc20_transfer(network, token_address, test_recipient, "0", callback)
-	EthersWeb.send_transaction(network, token_address, ERC20, "transfer", [test_recipient, "0"], "0", callback)
+	EthersWeb.send_transaction(network, token_address, ERC20, "transfer", [test_recipient, amount], "0", callback)
 
 
 func transaction_callback(callback):
@@ -164,7 +180,7 @@ func transaction_callback(callback):
 	print_log("Tx Hash: " + callback["result"]["hash"])
 
 
-func listen_test():
+func event_listen():
 	var network = "Ethereum Mainnet"
 	var callback = EthersWeb.create_callback(self, "show_listen")
 	
@@ -178,15 +194,15 @@ func show_listen(callback):
 	$ListenNotice.visible = true
 
 
-func stop_listen_test():
+func stop_event_listen():
 	var network = "Ethereum Mainnet"
 	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
 	var event = "Transfer"
-	var callback = EthersWeb.create_callback(self, "stop_listen")
+	var callback = EthersWeb.create_callback(self, "stopped_listen")
 	EthersWeb.end_listen(network, token_address, JSON.stringify(ERC20), event, callback)
 
 
-func stop_listen(callback):
+func stopped_listen(callback):
 	if has_error(callback):
 		return
 	$ListenNotice.visible = false
@@ -194,16 +210,16 @@ func stop_listen(callback):
 
 
 
-func test_add_chain():
+func add_chain():
 	EthersWeb.add_chain("Avalanche Mainnet")
 
-func test_add_erc20():
+func add_erc20():
 	var network = "Ethereum Sepolia"
 	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
 	EthersWeb.add_erc20(network, token_address, "LINK", 18)
 
 
-func test_tx_receipt(tx_receipt):
+func receive_tx_receipt(tx_receipt):
 
 	var hash = tx_receipt["hash"]
 	var status = str(tx_receipt["status"])
@@ -218,16 +234,19 @@ func test_tx_receipt(tx_receipt):
 	
 
 
-func test_event_log(event):
-	print("hi")
-	var args = event.args
+func receive_event_log(args):
 	
-	var from = args.from
-	var to = args.to
-	var val = args.value
+	var from = args[0]
+	var to = args[1]
+	var value = args[2]
 	
-	var txt = from + " sent to " + to
+	# You can convert the BigNumber into a decimal value if you wish
+	var smallnum = EthersWeb.convert_to_smallnum(value)
+	
+	var txt = from + " sent " + str(smallnum) + " LINK to " + to
 	print_log(txt)
+	
+
 
 func print_log(txt):
 	$Log.text += txt + "\n___________________________________\n"

@@ -478,6 +478,71 @@ func arr_to_obj(arr: Array) -> JavaScriptObject:
 # and then JSON.parse in JavaScript.
 
 
+func convert_to_bignum(number, token_decimals=18):
+	number = str(number)
+	
+	if number.begins_with("."):
+		number = "0" + number
+		
+	var zero_filler = int(token_decimals)
+	var decimal_index = number.find(".")
+	
+	var bignum = number
+	if decimal_index != -1:
+		var segment = number.right(-(decimal_index+1) )
+		zero_filler -= segment.length()
+		bignum = bignum.erase(decimal_index,1)
+
+	for zero in range(zero_filler):
+		bignum += "0"
+	
+	var zero_parse_index = 0
+	if bignum.begins_with("0"):
+		for digit in bignum:
+			if digit == "0":
+				zero_parse_index += 1
+			else:
+				break
+	if zero_parse_index > 0:
+		bignum = bignum.right(-zero_parse_index)
+
+	if bignum == "":
+		bignum = "0"
+
+	return bignum
+
+
+func convert_to_smallnum(bignum, token_decimals=18):
+	var size = bignum.length()
+	var smallnum = ""
+	if size <= int(token_decimals):
+		smallnum = "0."
+		var fill_length = int(token_decimals) - size
+		for zero in range(fill_length):
+			smallnum += "0"
+		smallnum += String(bignum)
+	elif size > 18:
+		smallnum = bignum
+		var decimal_index = size - 18
+		smallnum = smallnum.insert(decimal_index, ".")
+	
+	var index = 0
+	var zero_parse_index = 0
+	var prune = false
+	for digit in smallnum:
+		if digit == "0":
+			if !prune:
+				zero_parse_index = index
+				prune = true
+		else:
+			prune = false
+		index += 1
+	if prune:
+		smallnum = smallnum.left(zero_parse_index).trim_suffix(".")
+	
+	return smallnum
+
+
 ### NETWORK INFO
 
 var default_network_info = {

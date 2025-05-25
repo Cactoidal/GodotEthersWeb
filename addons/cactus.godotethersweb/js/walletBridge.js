@@ -1,5 +1,5 @@
 window.walletBridge = {
-
+  
   // WEB3 WALLET 
 
   getBalance: async function(address, success, failure, callback) {
@@ -44,9 +44,8 @@ window.walletBridge = {
       const info = {
         address: _address,
         chainId: _chainId,
-        // Unfortunately this is not ideal, since it is possible
-        // for a chain to have gas with decimals other than 18
-        balance: window.ethers.formatUnits(_balance, 18)
+    
+        balance: window.ethers.formatUnits(_balance)
       }
       console.log(info)
 			success(callback, info)
@@ -238,7 +237,6 @@ window.walletBridge = {
       
     try {
 
-
         await window.ethereum.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: _chainId }],
@@ -255,7 +253,12 @@ window.walletBridge = {
         });
 
         decoded = iface.decodeFunctionResult(method, result)
-        success(callback, decoded); 
+
+        // BigInts must be converted into Strings so they can be
+        // read into Godot
+        converted = this.convertBigIntsToStrings(decoded)
+   
+        success(callback, converted); 
         } 
 		
     catch (_error) { 
@@ -414,8 +417,10 @@ window.walletBridge = {
       
       window.provider[_chainId].on(filter, (log) => {
         const parsed = iface.parseLog(log);
-        console.log(parsed)
-        eventCallback(parsed)
+        var deproxied = this.deProxify(parsed.args)
+        var converted = this.convertBigIntsToStrings(deproxied)
+        console.log(converted)
+        eventCallback(converted)
       });
       success(callback);
      
@@ -529,6 +534,55 @@ window.walletBridge = {
     },
 
 
+    // Parsed event logs (produced by parseLog()) are proxies, which makes
+    // cycling through their fields difficult.  We must access every field
+    // to convert all BigInts into Strings, so they can be read into Godot.
+    deProxify: function (args) {
+
+      try {
+      const result = {};
+      for (const key in args) {
+        result[key] = args[key];
+      }
+        return result;
+    
+      }
+      catch(_error) {
+        console.error(_error)
+      }
+    },
+
+    
+    // Not fully tested yet
+
+    /**
+ * Recursively converts all BigNumbers in an object (or array) to strings.
+ * @param {*} input - The object, array, or value to process.
+ * @returns {*} A new structure with BigNumbers converted to strings.
+ */
+    convertBigIntsToStrings: function(input) {
+
+      if (typeof(input) == "bigint") {
+        return input.toString();
+      }
+
+      if (Array.isArray(input)) {
+        return input.map(this.convertBigIntsToStrings);
+      }
+
+      if (typeof input === 'object' && input !== null) {
+        const result = {};
+        for (const key in input) {
+          if (Object.prototype.hasOwnProperty.call(input, key)) {
+            result[key] = this.convertBigIntsToStrings(input[key]);
+          }
+        }
+        return result;
+      }
+
+      return input; // return unchanged for primitives (string, number, null, etc.)
+    }
+    
   };
 
 
