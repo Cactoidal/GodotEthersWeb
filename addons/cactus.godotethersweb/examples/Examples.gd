@@ -153,7 +153,7 @@ func test_transfer():
 	
 	# Note that numbers are always passed as strings.  To convert from
 	# decimal to BigNumber format, use EthersWeb.convert_to_bignum()
-	var amount = "0"
+	var amount = EthersWeb.convert_to_bignum("0", 18)
 	var network = "Ethereum Sepolia"
 		
 	var callback = EthersWeb.create_callback(self, "transaction_callback")
@@ -162,7 +162,7 @@ func test_transfer():
 
 
 func test_write():
-	var amount = "0"
+	var amount = EthersWeb.convert_to_bignum("0", 18)
 	var network = "Ethereum Sepolia"
 	var callback = EthersWeb.create_callback(self, "transaction_callback")
 	
