@@ -233,7 +233,7 @@ window.walletBridge = {
 
   // CONTRACT READ 
 
-  initiateContractRead: async function(_chainId, contract_address, abi, method, args, success, failure, callback) {
+  initiateContractRead: async function(_chainId, contract_address, calldata, success, failure, callback) {
       
     try {
 
@@ -243,22 +243,13 @@ window.walletBridge = {
           })
         
         var provider = new window.ethers.BrowserProvider(window.ethereum);
-        const iface = new window.ethers.Interface(abi);
-        const calldata = iface.encodeFunctionData(method, args);
-
 
         const result = await provider.call({
         to: contract_address,
         data: calldata,
         });
-
-        decoded = iface.decodeFunctionResult(method, result)
-
-        // BigInts must be converted into Strings so they can be
-        // read into Godot
-        converted = this.convertBigIntsToStrings(decoded)
    
-        success(callback, converted); 
+        success(callback, result.toString()); 
         } 
 		
     catch (_error) { 
@@ -274,8 +265,8 @@ window.walletBridge = {
 
   // CONTRACT WRITE 
 
-  initiateContractCall: async function(_chainId, contract_address, abi, method, args, valueEth, success, failure, receiptCallback, callback) {
-	  console.log("what")
+  initiateContractCall: async function(_chainId, contract_address, calldata, valueEth, success, failure, receiptCallback, callback) {
+    
     try {
 
       await window.ethereum.request({
@@ -286,7 +277,7 @@ window.walletBridge = {
       var provider = new window.ethers.BrowserProvider(window.ethereum);
 
       var signer = await provider.getSigner();
-      this.callContractFunction(signer, contract_address, abi, method, args, valueEth, success, failure, receiptCallback, callback) 
+      this.callContractFunction(signer, contract_address, calldata, valueEth, success, failure, receiptCallback, callback) 
           } 
 		
     catch (_error) { 
@@ -296,13 +287,11 @@ window.walletBridge = {
 
   },
 
-  callContractFunction: async function(signer, contract_address, abi, method, args, valueEth, success, failure, receiptCallback, callback) {
+  callContractFunction: async function(signer, contract_address, calldata, valueEth, success, failure, receiptCallback, callback) {
 
     try {
-      const iface = new window.ethers.Interface(abi);
-      const calldata = iface.encodeFunctionData(method, args);
-      console.log(calldata);
-
+  
+      console.log(calldata)
       const tx = await signer.sendTransaction({
         to: contract_address,
         data: calldata,
@@ -423,11 +412,9 @@ window.walletBridge = {
       };
       
       window.provider[_chainId].on(filter, (log) => {
-        const parsed = iface.parseLog(log);
-        var deproxied = this.deProxify(parsed.args)
-        var converted = this.convertBigIntsToStrings(deproxied)
-        console.log(converted)
-        eventCallback(converted)
+        console.log(log)
+        eventCallback(JSON.stringify(log))
+  
       });
       success(callback);
      
@@ -559,38 +546,138 @@ window.walletBridge = {
       }
     },
 
-    
-    // Not fully tested yet
 
-    /**
- * Recursively converts all BigNumbers in an object (or array) to strings.
- * @param {*} input - The object, array, or value to process.
- * @returns {*} A new structure with BigNumbers converted to strings.
- */
-    convertBigIntsToStrings: function(input) {
 
-      if (typeof(input) == "bigint") {
-        return input.toString();
+  // BIG INT MATH
+  // These are not async, so they can be called and returned directly
+  // back into Godot without a callback function
+
+  bigintArithmetic: function(_number1, _number2, operation) {
+
+    try {
+      console.log("hi")
+      var number1 = BigInt(_number1);
+      var number2 = BigInt(_number2);
+
+      var output 
+
+      if (operation == "ADD") {
+        output = (number1 + number2);
       }
 
-      if (Array.isArray(input)) {
-        return input.map(walletBridge.convertBigIntsToStrings);
-      }
-
-      if (typeof input === 'object' && input !== null) {
-        const result = {};
-        for (const key in input) {
-          if (Object.prototype.hasOwnProperty.call(input, key)) {
-            result[key] = walletBridge.convertBigIntsToStrings(input[key]);
-          }
+      else if (operation == "SUBTRACT") {
+        if (number1 >= number2) {
+          output = (number1 - number2);
         }
-        return result;
       }
 
-      return input; // return unchanged for primitives (string, number, null, etc.)
+      else if (operation == "DIVIDE") {
+        if (number1 >= number2) {
+          output = (number1 / number2);
+        }
+      }
+
+      else if (operation == "MULTIPLY") {
+          output = (number1 * number2);
+      }
+      console.log(output)
+      return output.toString()
     }
-    
-  };
+
+    catch (_error) { 
+      console.error(_error); 
+      return output
+    }
+
+  },
+
+  bigintCompare: function(_number1, _number2, operation) { 
+    var number1 = BigInt(_number1);
+    var number2 = BigInt(_number2);
+
+    var output 
+
+    try {
+      if (operation == "GREATER THAN") {
+          if (number1 > number2) {
+              output = true;
+          }
+          else {
+              output = false;
+          }
+      }
+      else if (operation == "LESS THAN") {
+          if (number1 < number2) {
+              output = true;
+          }
+          else {
+              output = false;
+          }
+      }
+      else if (operation == "GREATER THAN OR EQUAL") {
+          if (number1 >= number2) {
+              output = true;
+          }
+          else {
+              output = false;
+          }
+      }
+      else if (operation == "LESS THAN OR EQUAL") {
+          if (number1 <= number2) {
+              output = true;
+          }
+          else {
+              output = false;
+          }
+      }
+      else if (operation == "EQUAL") { 
+          if (number1 == number2) {
+              output = true;
+          }
+          else {
+              output = false;
+          }
+      }
+      console.log(output)
+      return output
+    }
+
+    catch (_error) { 
+      console.error(_error); 
+      return output
+    }
+
+
+},
+
+abiEncode: function(types, values) {
+
+  var encoder = window.ethers.AbiCoder.defaultAbiCoder()
+
+  var calldata = encoder.encode(types, values)
+  
+  return calldata
+},
+
+abiDecode: function(types, calldata) {
+
+  var decoder = window.ethers.AbiCoder.defaultAbiCoder()
+
+  var values = decoder.decode(types, calldata)
+  
+  return values.toString()
+},
+
+
+
+getFunctionSelector: function(selectorString) {
+  var selectorBytes = window.ethers.toUtf8Bytes(selectorString)
+  var selectorHash = window.ethers.keccak256(selectorBytes)
+  return selectorHash
+},
+
+
+};
 
 
   // Listen for changes from wallet

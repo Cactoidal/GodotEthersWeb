@@ -13,17 +13,30 @@ func _ready():
 func connect_buttons():
 	$ConnectWallet.connect("pressed", connect_wallet)
 	$WalletInfo.connect("pressed", get_wallet_info)
+	
 	$ContractRead.connect("pressed", read_from_contract)
 	$ERC20Info.connect("pressed", get_erc20_info)
+	
 	$Sign.connect("pressed", sign_message)
 	$SignTyped.connect("pressed", example_format_typed)
-	$Transfer.connect("pressed", test_transfer)
-	$SendLink.connect("pressed", test_write)
+	
+	$MintBnM.connect("pressed", mint_sepolia_bnm)
+	$ApproveRouter.connect("pressed", approve_router)
+	$CCIPSend.connect("pressed", example_ccip_send)
+	
 	$EventStart.connect("pressed", event_listen)
 	$EventStop.connect("pressed", stop_event_listen)
 	
+	# CCIP Listen
+	
+	
+	
+	#$Transfer.connect("pressed", test_transfer)
 	#$AddERC20.connect("pressed", add_erc20)
 	#$AddChain.connect("pressed", add_chain)
+	#$ContractRead.connect("pressed", get_onramp)
+	#$ContractRead.connect("pressed", get_offramps)
+	#$BigIntMath.connect("pressed", big_int_math)
 	
 	EthersWeb.register_transaction_log(self, "receive_tx_receipt")
 	EthersWeb.register_event_stream(self, "receive_event_log")
@@ -66,8 +79,9 @@ func read_from_contract():
 	# You can send key:value pairs in your callback, to be used
 	# in the callback function
 	var callback = EthersWeb.create_callback(self, "got_name", {"token_address": token_address, "network": network})
+	var data = EthersWeb.get_calldata(ERC20, "name", [])
 	
-	EthersWeb.read_from_contract(network, token_address, ERC20, "name", [], callback)
+	EthersWeb.read_from_contract(network, token_address, data, callback)
 	
 
 func got_name(callback):
@@ -164,16 +178,19 @@ func test_transfer():
 	
 
 
-func test_write():
+func approve_router():
 	var amount = EthersWeb.convert_to_bignum("0", 18)
+	
 	var network = "Ethereum Sepolia"
 	var callback = EthersWeb.create_callback(self, "transaction_callback")
 	
 	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
 	
-	# This commented function does the same thing 
-	#EthersWeb.erc20_transfer(network, token_address, test_recipient, "0", callback)
-	EthersWeb.send_transaction(network, token_address, ERC20, "transfer", [test_recipient, amount], "0", callback)
+	var router = EthersWeb.default_network_info[network]["ccipRouter"]
+	var bnm_contract = "0xFd57b4ddBf88a4e07fF4e34C487b99af2Fe82a05"
+	
+	EthersWeb.erc20_approve(network, bnm_contract, router, "MAX", callback)
+
 
 
 func transaction_callback(callback):
@@ -228,15 +245,22 @@ func stopped_listen(callback):
 	$ListenNotice.visible = false
 
 
-func receive_event_log(args):
+func receive_event_log(_args):
+	var args = JSON.parse_string(_args)
 	
-	var from = args[0]
-	var to = args[1]
-	var value = args[2]
+	# Manually decoding event
+	var _from = args.topics[1]
+	var from = Calldata.abi_decode([{"type": "address"}], _from)[0]
 	
+	var _to = args.topics[2]
+	var to = Calldata.abi_decode([{"type": "address"}], _to)[0]
+	
+	var _value = args.data
+	var value = Calldata.abi_decode([{"type": "uint256"}], _value)[0]
+
 	# You can convert the BigNumber into a decimal value if you wish
 	var smallnum = EthersWeb.convert_to_smallnum(value)
-	
+
 	var txt = from + " sent " + str(smallnum) + " LINK to " + to
 	print_log(txt)
 	
@@ -260,3 +284,100 @@ func add_erc20():
 	var network = "Ethereum Sepolia"
 	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
 	EthersWeb.add_erc20(network, token_address, "LINK", 18)
+
+func big_int_math():
+	var num1 = "2000000000000000000000000000000000"
+	var num2 = "4000500000000000001000000002000001"
+	var result = EthersWeb.big_int_math(num1, "ADD", num2)
+	#var result = EthersWeb.big_int_math(num1, "MULTIPLY", num2)
+	#var result = EthersWeb.big_int_math(num2, "DIVIDE", num1)
+	
+	#var result = EthersWeb.big_int_math(num2, "GREATER THAN", num1)
+	#var result = EthersWeb.big_int_math(num2, "LESS THAN", num1)
+	print_log(str(result))
+
+
+
+### CCIP
+
+func mint_sepolia_bnm():
+	if !connected_wallet:
+		print_log("Please connect your wallet")
+		return
+	
+	var data = EthersWeb.get_calldata(Contract.BnM, "drip", [connected_wallet])
+	var bnm_contract = "0xFd57b4ddBf88a4e07fF4e34C487b99af2Fe82a05"
+	
+	EthersWeb.send_transaction(
+		"Ethereum Sepolia",
+		bnm_contract,
+		data
+	)
+	
+
+
+func example_ccip_send():
+	if !connected_wallet:
+		print_log("Please connect your wallet")
+		return
+	
+	var from_network = "Ethereum Sepolia"
+	var to_network = "Avalanche Fuji"
+	var amount = "0.01"
+	
+	var callback_args = {
+		"from_network": from_network,
+		"to_network": to_network,
+		"token_name": "BnM Token",
+		"token_amount": amount
+	}
+	var callback = EthersWeb.create_callback(self, "sent_ccip_message", callback_args)
+	
+	# Ethereum Sepolia
+	var bnm_contract = "0xFd57b4ddBf88a4e07fF4e34C487b99af2Fe82a05"
+	
+	EthersWeb.ccip_send(
+		connected_wallet,
+		from_network,
+		to_network,
+		bnm_contract,
+		EthersWeb.convert_to_bignum(amount),
+		callback
+		)
+
+
+func sent_ccip_message(callback):
+	var from_network = callback["from_network"]
+	var to_network = callback["to_network"]
+	var token_name = callback["token_name"]
+	var token_amount =  callback["token_amount"]
+	
+	var txt = "Sending " + token_amount + " " + token_name +  " from " + from_network + " to "  + to_network
+	print_log(txt)
+
+
+
+
+
+
+
+# Find the onRamp targeting the destination network
+func get_onramp():
+	var sender_network = "Ethereum Sepolia"
+	var destination_network = "Avalanche Fuji"
+	var callback = EthersWeb.create_callback(self, "got_onramp", {"destination": destination_network})
+	EthersWeb.get_onramp(sender_network, destination_network, callback)
+
+func got_onramp(callback):
+	var txt = "OnRamp for " + callback["destination"] +":\n" + callback["result"][0]
+	print_log(txt)
+	
+
+# Monitor offRamps for incoming messages
+func get_offramps():
+	var destination_network = "Ethereum Sepolia"
+	var callback = EthersWeb.create_callback(self, "got_offramps", {"destination": destination_network})
+	EthersWeb.get_offramps(destination_network, callback)
+
+func got_offramps(callback):
+	print(callback)
