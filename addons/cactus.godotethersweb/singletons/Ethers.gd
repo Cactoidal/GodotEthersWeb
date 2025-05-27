@@ -172,8 +172,7 @@ func listen_for_event(
 	network,
 	wss_node, 
 	contract,
-	ABI, 
-	event, 
+	topics,
 	callback="{}"
 	):
 	var chainId = default_network_info[network]["chainId"]
@@ -183,8 +182,7 @@ func listen_for_event(
 		chainId,
 		wss_node,
 		contract, 
-		ABI, 
-		event, 
+		arr_to_obj(topics),
 		success_callback, 
 		error_callback,
 		event_callback, 
@@ -195,8 +193,7 @@ func listen_for_event(
 func end_listen(
 	network, 
 	contract, 
-	ABI, 
-	event, 
+	topics,
 	callback="{}"
 	):
 	var chainId = default_network_info[network]["chainId"]
@@ -205,8 +202,7 @@ func end_listen(
 	window.walletBridge.endEventListen(
 		chainId,
 		contract, 
-		ABI, 
-		event,
+		arr_to_obj(topics),
 		success_callback, 
 		error_callback, 
 		callback
@@ -819,7 +815,7 @@ var chain_selector_map = {
 
 # You must first approve the router's spend,
 # and naturally you should validate 
-# user inputs before attempting 
+# user inputs before attempting.
 func ccip_send(recipient_address, from_network, to_network, token, amount, _callback="{}"):
 
 	# When encoding, structs are declared as arrays 
@@ -901,6 +897,11 @@ func got_ccip_fee(callback):
 			var restored_key = key.substr(9)
 			callback[restored_key] = callback[key]
 	
+	# While not strictly necessary to remove this (it was added
+	# by the previous read call), doing so will prevent the error
+	# from appearing in the log :^)
+	callback.erase("output_types")
+
 	send_transaction(network, router, data, fee, str(callback))
 
 

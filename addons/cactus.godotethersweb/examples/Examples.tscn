@@ -124,13 +124,14 @@ text = "Stop Listening"
 [node name="ListenNotice" type="Label" parent="."]
 visible = false
 layout_mode = 0
-offset_left = 930.0
-offset_top = 146.0
-offset_right = 1099.0
-offset_bottom = 221.0
-text = "Listening for LINK
-\"Transfer\" events
-on Ethereum Mainnet"
+offset_left = 917.0
+offset_top = 125.0
+offset_right = 1172.0
+offset_bottom = 244.0
+text = "Listening for \"CCIPSendRequested\" events
+on Ethereum Sepolia ->
+Avalanche Fuji lane"
+autowrap_mode = 3
 
 [node name="Log" type="TextEdit" parent="."]
 layout_mode = 0

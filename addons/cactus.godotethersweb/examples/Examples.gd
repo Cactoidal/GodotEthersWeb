@@ -5,8 +5,6 @@ extends Control
 var connected_wallet
 var listening = false
 
-var test_recipient = "0xdef456def456def456def456def456def456def4"
-
 func _ready():
 	connect_buttons()
 
@@ -24,10 +22,9 @@ func connect_buttons():
 	$ApproveRouter.connect("pressed", approve_router)
 	$CCIPSend.connect("pressed", example_ccip_send)
 	
-	$EventStart.connect("pressed", event_listen)
+	$EventStart.connect("pressed", ccip_listen)
 	$EventStop.connect("pressed", stop_event_listen)
 	
-	# CCIP Listen
 	
 	
 	
@@ -37,6 +34,7 @@ func connect_buttons():
 	#$ContractRead.connect("pressed", get_onramp)
 	#$ContractRead.connect("pressed", get_offramps)
 	#$BigIntMath.connect("pressed", big_int_math)
+	#$EventStart.connect("pressed", event_listen)
 	
 	EthersWeb.register_transaction_log(self, "receive_tx_receipt")
 	EthersWeb.register_event_stream(self, "receive_event_log")
@@ -58,6 +56,7 @@ func got_account_list(callback):
 func get_wallet_info():
 	var callback = EthersWeb.create_callback(self, "show_wallet_info")
 	EthersWeb.get_connected_wallet_info(callback)
+
 
 func show_wallet_info(callback):
 	if has_error(callback):
@@ -172,6 +171,7 @@ func test_transfer():
 	# decimal to BigNumber format, use EthersWeb.convert_to_bignum()
 	var amount = EthersWeb.convert_to_bignum("0", 18)
 	var network = "Ethereum Sepolia"
+	var test_recipient = "0xdef456def456def456def456def456def456def4"
 		
 	var callback = EthersWeb.create_callback(self, "transaction_callback")
 	EthersWeb.transfer(network, test_recipient, amount, callback)
@@ -215,14 +215,31 @@ func receive_tx_receipt(tx_receipt):
 	print_log(txt)
 
 
-func event_listen():
-	var network = "Ethereum Mainnet"
-	var wss_node = "wss://ethereum-rpc.publicnode.com"
+#func event_listen():
+	#var network = "Ethereum Mainnet"
+	#var wss_node = "wss://ethereum-rpc.publicnode.com"
+	#var callback = EthersWeb.create_callback(self, "show_listen")
+	#
+	#var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
+	#
+	## Topic hash of "Transfer" event
+	#var topics = ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"]
+	#
+	#EthersWeb.listen_for_event(network, wss_node, token_address, topics, callback)
+
+
+func ccip_listen():
+	var network = "Ethereum Sepolia"
+	var wss_node = "wss://ethereum-sepolia-rpc.publicnode.com"
 	var callback = EthersWeb.create_callback(self, "show_listen")
 	
-	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
+	#Topic hash for CCIPSendRequested
+	var topics = ["0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd"]
 	
-	EthersWeb.listen_for_event(network, wss_node, token_address, JSON.stringify(ERC20), "Transfer", callback)
+	# Ethereum Sepolia -> Avalanche Fuji onRamp contract
+	var onramp_address = "0x12492154714fBD28F28219f6fc4315d19de1025B"
+	
+	EthersWeb.listen_for_event(network, wss_node, onramp_address, topics, callback)
 
 
 func show_listen(callback):
@@ -232,11 +249,19 @@ func show_listen(callback):
 
 
 func stop_event_listen():
-	var network = "Ethereum Mainnet"
-	var token_address = EthersWeb.default_network_info[network]["chainlinkToken"]
-	var event = "Transfer"
+	var network = "Ethereum Sepolia"
+	
+	#var contract_address = EthersWeb.default_network_info[network]["chainlinkToken"]
+	## Topic hash of "Transfer" event
+	#var topics = ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"]
+	
+	# Ethereum Sepolia -> Avalanche Fuji onRamp contract
+	var contract_address = "0x12492154714fBD28F28219f6fc4315d19de1025B"
+	#Topic hash for CCIPSendRequested
+	var topics = ["0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd"]
+	
 	var callback = EthersWeb.create_callback(self, "stopped_listen")
-	EthersWeb.end_listen(network, token_address, JSON.stringify(ERC20), event, callback)
+	EthersWeb.end_listen(network, contract_address, topics, callback)
 
 
 func stopped_listen(callback):
@@ -247,22 +272,47 @@ func stopped_listen(callback):
 
 func receive_event_log(_args):
 	var args = JSON.parse_string(_args)
-	
+
 	# Manually decoding event
-	var _from = args.topics[1]
-	var from = Calldata.abi_decode([{"type": "address"}], _from)[0]
+	# Check EVM2EVMMessage in the Contract singleton to 
+	# see the message fields
+	var message = args.data
+	var decoded_message = Calldata.abi_decode([Contract.EVM2EVMMessage], message)[0]
 	
-	var _to = args.topics[2]
-	var to = Calldata.abi_decode([{"type": "address"}], _to)[0]
+	var sender = decoded_message[1]
+	var receiver = decoded_message[2]
 	
-	var _value = args.data
-	var value = Calldata.abi_decode([{"type": "uint256"}], _value)[0]
-
-	# You can convert the BigNumber into a decimal value if you wish
-	var smallnum = EthersWeb.convert_to_smallnum(value)
-
-	var txt = from + " sent " + str(smallnum) + " LINK to " + to
+	var txt = "Sender " + sender + " sent "
+	var tokenAmounts = decoded_message[10]
+	if !tokenAmounts.is_empty():
+		var token_contract = tokenAmounts[0][0]
+		var token_amount = tokenAmounts[0][1]
+		txt += token_amount + " of token " + token_contract
+	
+	txt += " to Recipient " + receiver
+	
 	print_log(txt)
+	
+	
+	# Manually decoding a Transfer event, which is what this
+	# example function used to do
+	
+	#var _from = args.topics[1]
+	#var from = Calldata.abi_decode([{"type": "address"}], _from)[0]
+	#
+	#var _to = args.topics[2]
+	#var to = Calldata.abi_decode([{"type": "address"}], _to)[0]
+	#
+	#var _value = args.data
+	#var value = Calldata.abi_decode([{"type": "uint256"}], _value)[0]
+#
+	## You can convert the BigNumber into a decimal value if you wish
+	#var smallnum = EthersWeb.convert_to_smallnum(value)
+#
+	#var txt = from + " sent " + str(smallnum) + " LINK to " + to
+	
+	
+	
 	
 
 
@@ -347,6 +397,8 @@ func example_ccip_send():
 
 
 func sent_ccip_message(callback):
+	if has_error(callback):
+		return
 	var from_network = callback["from_network"]
 	var to_network = callback["to_network"]
 	var token_name = callback["token_name"]

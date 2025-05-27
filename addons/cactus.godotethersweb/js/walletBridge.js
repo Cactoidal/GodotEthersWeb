@@ -382,7 +382,7 @@ window.walletBridge = {
 
   // LISTEN FOR EVENTS 
 
-  listenForEvent: async function(_chainId, wss_node, contract_address, ABI, event, success, failure, eventCallback, callback) {
+  listenForEvent: async function(_chainId, wss_node, contract_address, _topics, success, failure, eventCallback, callback) {
 	  
     try {
 
@@ -401,14 +401,11 @@ window.walletBridge = {
         //window.provider[_chainId] = new window.ethers.BrowserProvider(window.ethereum)
       }
 
-      const iface = new window.ethers.Interface(ABI);
-      const topic = iface.getEvent(event).topicHash;
 
-      console.log(topic)
 
       const filter = {
         address: contract_address,
-        topics: [topic]
+        topics: _topics
       };
       
       window.provider[_chainId].on(filter, (log) => {
@@ -433,7 +430,7 @@ window.walletBridge = {
 
   // END EVENT LISTENING
 
-  endEventListen: async function(_chainId, contract_address, ABI, event, success, failure, callback) {
+  endEventListen: async function(_chainId, contract_address, _topics, success, failure, callback) {
 	  
     try {
 
@@ -442,18 +439,13 @@ window.walletBridge = {
         params: [{ chainId: _chainId }],
         })
 
-      const iface = new window.ethers.Interface(ABI);
-      const fragment = iface.getEvent(event);
-      const signature = fragment.format(); 
-      const topic = window.ethers.id(signature);
-
       const filter = {
         address: contract_address,
-        topics: [topic]
+        topics: _topics
       };
       
       window.provider[_chainId].removeAllListeners(filter);
-      success(callback, topic)
+      success(callback, contract_address)
       }
     catch (_error) { 
 		  console.error(_error); 
