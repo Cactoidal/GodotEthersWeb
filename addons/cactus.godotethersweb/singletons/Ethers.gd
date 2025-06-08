@@ -276,12 +276,11 @@ func erc20_balance(
 	token_contract, 
 	callback="{}"
 	):
-	var chainId = default_network_info[network]["chainId"]
 	callback = _add_value_to_callback(callback, "network", network)
 	var data = get_calldata(Contract.ERC20, "balanceOf", [address]) 
 	
 	read_from_contract(
-		chainId,
+		network,
 		token_contract, 
 		data,
 		callback
