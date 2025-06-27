@@ -14,11 +14,13 @@ var has_wallet = false
 var transaction_logs = []
 var event_streams = []
 
+
+
 func _ready():
 	# Scripts are attached to the browser window on ready
 	load_and_attach(ethers_filepath)
 	load_and_attach(wallet_bridge_filepath)
-
+	
 	# Check if a webwallet is in the window
 	if window.ethereum:
 		has_wallet = true
@@ -54,6 +56,9 @@ func switch_chain(chain_id, success, failure, callback):
 	window.walletBridge.switch_chain(chain_id, success, failure, callback)
 
 
+func poll_accounts(callback="{}"):
+	window.walletBridge.poll_accounts(success_callback, error_callback, callback)
+
 
 ### BLOCKCHAIN INTERACTIONS AND SIGNING
 
@@ -83,10 +88,8 @@ func send_transaction(
 	network,
 	contract,
 	calldata,
-	#ABI,
-	#method,
-	#parameters=[],
 	value="0",
+	gas_limit_override=null,
 	callback="{}"
 	):
 		var chainId = default_network_info[network]["chainId"]
@@ -96,10 +99,8 @@ func send_transaction(
 			chainId,
 			contract, 
 			calldata["calldata"],
-			#JSON.stringify(ABI), 
-			#method, 
-			#arr_to_obj(parameters), 
 			value, 
+			gas_limit_override,
 			success_callback, 
 			error_callback,
 			tx_callback,
@@ -209,6 +210,10 @@ func end_listen(
 	)
 
 
+func get_block_timestamp(callback="{}"):
+	window.walletBridge.getCurrentBlockTimestamp(success_callback, error_callback, callback)
+
+
 # "Transaction logs" and "event streams" are defined by providing
 # a callback node and a callback function.  Whenever a transaction receipt
 # or event is received, they will be transmitted to any registered 
@@ -306,6 +311,7 @@ func erc20_approve(
 		token_contract, 
 		data,
 		"0",
+		null,
 		callback
 		)
 
@@ -324,6 +330,7 @@ func erc20_transfer(
 		token_contract, 
 		data,
 		"0",
+		null,
 		callback
 		)
 
@@ -387,7 +394,6 @@ var error_callback = JavaScriptBridge.create_callback(got_error_callback)
 
 
 func got_success_callback(args):
-	
 	var callback = JSON.parse_string(args[0])
 
 	if args.size() > 1:
@@ -416,6 +422,12 @@ func got_error_callback(args):
 
 func got_tx_callback(args):
 	var tx_receipt = args[0]
+	
+	var callback_args = JSON.parse_string(args[1])
+	if callback_args:
+		for key in callback_args.keys():
+			tx_receipt[key] = callback_args[key]
+	
 	transmit_transaction_object(tx_receipt)
 
 func got_event_callback(event):
@@ -500,6 +512,7 @@ func _add_value_to_callback(callback, key, value):
 # them to the browser window
 func load_and_attach(path):
 	var attaching_script = load_script_from_file(path)
+
 	JavaScriptBridge.eval(attaching_script, true)
 
 
@@ -508,6 +521,7 @@ func load_script_from_file(path: String) -> String:
 	if file:
 		return file.get_as_text()
 	return ""
+
 
 
 
@@ -605,7 +619,7 @@ func convert_to_smallnum(bignum, token_decimals=18):
 
 func big_int_math(number1, operation, number2):
 	var output
-	if operation in ["ADD", "SUBTRACT", "DIVIDE", "MULTIPLY"]:
+	if operation in ["ADD", "SUBTRACT", "DIVIDE", "MULTIPLY", "MODULO"]:
 		output = window.walletBridge.bigintArithmetic(number1, number2, operation)
 	if operation in ["GREATER THAN", "LESS THAN", "GREATER THAN OR EQUAL", "LESS THAN OR EQUAL", "EQUAL"]:
 		output = window.walletBridge.bigintCompare(number1, number2, operation)
@@ -901,7 +915,7 @@ func got_ccip_fee(callback):
 	# from appearing in the log :^)
 	callback.erase("output_types")
 
-	send_transaction(network, router, data, fee, str(callback))
+	send_transaction(network, router, data, fee, null, str(callback))
 
 
 

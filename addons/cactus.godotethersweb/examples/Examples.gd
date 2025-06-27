@@ -5,6 +5,9 @@ extends Control
 var connected_wallet
 var listening = false
 
+@onready var connector = preload("res://addons/cactus.godotethersweb/examples/Connector.tscn")
+
+
 func _ready():
 	connect_buttons()
 
@@ -42,7 +45,10 @@ func connect_buttons():
 
 func connect_wallet():
 	var callback = EthersWeb.create_callback(self, "got_account_list")
-	EthersWeb.connect_wallet(callback)
+	var new_connector = connector.instantiate()
+	new_connector.ui_callback = callback
+	add_child(new_connector)
+
 
 func got_account_list(callback):
 	if has_error(callback):

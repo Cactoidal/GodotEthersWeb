@@ -14,6 +14,7 @@ func _js_abi_encode(_types, _values):
 # Keccak hash the formatted selector string
 # The returned hash will start with "0x"
 func _js_get_function_selector(selector_string):
+	
 	var selector_hash = EthersWeb.window.walletBridge.getFunctionSelector(selector_string)
 	return selector_hash.left(10)
 
@@ -41,7 +42,7 @@ func get_function_calldata(abi, function_name, _args=[]):
 		
 		
 	var function_selector = get_function_selector(function)
-
+	
 	return function_selector + calldata
 	
 

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://tk84ek5olntr"]
+
+[node name="ConnectorButton" type="Button"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -4.0
+offset_right = 4.0
+offset_bottom = 8.0
+grow_horizontal = 2
+mouse_default_cursor_shape = 2
+text = "Metamask"

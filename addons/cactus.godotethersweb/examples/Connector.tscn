@@ -1,0 +1,47 @@
+[gd_scene load_steps=2 format=3 uid="uid://dj3i5dki48n3q"]
+
+[ext_resource type="Script" uid="uid://dhunxmrxmumee" path="res://addons/cactus.godotethersweb/examples/Connector.gd" id="1_xwtpq"]
+
+[node name="Connector" type="Control"]
+layout_mode = 3
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_top = 88.0
+offset_bottom = 88.0
+grow_horizontal = 2
+script = ExtResource("1_xwtpq")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -135.0
+offset_right = 135.0
+offset_bottom = 444.0
+grow_horizontal = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Buttons" type="Control" parent="Backdrop"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -20.0
+offset_top = 62.0
+offset_right = 20.0
+offset_bottom = 102.0
+grow_horizontal = 2
+
+[node name="Prompt" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -99.0
+offset_top = 16.0
+offset_right = 99.0
+offset_bottom = 39.0
+grow_horizontal = 2
+text = "Choose Wallet to Connect"

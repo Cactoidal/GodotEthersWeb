@@ -1,9 +1,47 @@
 window.walletBridge = {
-  
-  // WEB3 WALLET 
 
+// CONNECTOR
+// See the "Connector.tscn" scene in the addons examples folder.
+// When the scene is instantiated, it sets up a listener in this function,
+// then pings any wallets in the window.  The names of detected wallets are then
+// fed back to Godot to populate a set of buttons.  Clicking a button will
+// call the connectWallet function, setting the selectedProvider, and then
+// EthersWeb will request the wallet's list of connected accounts.
+  detectWallets: function(callback) {
+    window.walletDetectionHandler = function handleAnnounce(event) {
+      window.walletBridge.walletDetected(event, callback);
+      }
+    window.addEventListener('eip6963:announceProvider', window.walletDetectionHandler)
+  
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+  },
+
+
+  walletDetected: function(event, callback) {
+    const { detail } = event;
+    const { info, provider } = detail;
+
+    console.log('Discovered wallet:', info.name);
+    console.log(provider)
+
+    window[info.name] = provider
+    
+    callback(info.name)
+  },
+
+  
+  connectWallet: async function(walletName) {
+    window.selectedProvider = window[walletName]
+    window.selectedProvider.on('accountsChanged', window.walletBridge.handleAccountsChanged);
+    window.selectedProvider.on('chainChanged', window.walletBridge.handleChainChanged);
+    window.removeEventListener('eip6963:announceProvider', window.walletDetectionHandler)
+  },
+  
+
+
+  // WEB3 WALLET
   getBalance: async function(address, success, failure, callback) {
-    var provider = new window.ethers.BrowserProvider(window.ethereum);
+    var provider = new window.ethers.BrowserProvider(window.selectedProvider);
     
     try {
 			const balance = await provider.getBalance(address);
@@ -17,7 +55,7 @@ window.walletBridge = {
   },
 
   getWalletAddress: async function(success, failure, callback) {
-    var provider = new window.ethers.BrowserProvider(window.ethereum);
+    var provider = new window.ethers.BrowserProvider(window.selectedProvider);
     
     try {
       const signer = await provider.getSigner();
@@ -33,12 +71,12 @@ window.walletBridge = {
 
 
   getWalletInfo: async function(success, failure, callback) {
-    var provider = new window.ethers.BrowserProvider(window.ethereum);
+    var provider = new window.ethers.BrowserProvider(window.selectedProvider);
     
     try {
       const signer = await provider.getSigner();
       var _address = await signer.getAddress();
-      var _chainId = await window.ethereum.request({method: "eth_chainId"});
+      var _chainId = await window.selectedProvider.request({method: "eth_chainId"});
       var _balance = await provider.getBalance(_address);
       
       const info = {
@@ -59,10 +97,49 @@ window.walletBridge = {
 
   },
 
+  getCurrentBlockTimestamp: async function(success, failure, callback) {
+    try {
+      // Ask MetaMask for the latest block
+      const latestBlock = await window.selectedProvider.request({
+        method: 'eth_getBlockByNumber',
+        params: ['latest', false], // false = don't return full transaction objects
+      });
+  
+      // Convert hex timestamp to decimal
+      timestamp = parseInt(latestBlock.timestamp, 16);
+  
+      console.log("Latest block timestamp:", timestamp);
+  
+      success(callback, timestamp);
+
+    } catch (error) {
+      console.error("Error fetching block timestamp:", error);
+      failure(callback, _error.code, _error.message)
+    }
+  },
+
+  
+  poll_accounts: async function(success, failure, callback) {
+    try {
+      account_list = await window.selectedProvider.request({ method: 'eth_accounts' })
+      success(callback, account_list[0])
+      }
+      catch (_error) { 
+        console.error(_error); 
+        failure(callback, _error.code, _error.message)
+      }
+  },
+
 
 	request_accounts: async function(success, failure, callback) {
+    // Simple fallback, if Connector.tscn is not used 
+    // (see CONNECTOR above for more info)
+    if (!window.selectedProvider) {
+      window.selectedProvider = window.selectedProvider
+    }
+
     try {
-	  account_list = await window.ethereum.request({ method: 'eth_requestAccounts' })
+	  account_list = await window.selectedProvider.request({ method: 'eth_requestAccounts' })
     success(callback, account_list)
     }
     catch (_error) { 
@@ -74,7 +151,7 @@ window.walletBridge = {
 
 	current_chain: async function(success, failure, callback) {
     try {
-      chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      chainId = await window.selectedProvider.request({ method: 'eth_chainId' });
       success(callback, chainId)
       }
     catch (_error) { 
@@ -87,7 +164,7 @@ window.walletBridge = {
 	switch_chain: async function(_chainId, success, failure, callback) {
 	  
     try {
-    await window.ethereum // Or window.ethereum if you don't support EIP-6963.
+    await window.selectedProvider 
 	.request({
 	  method: "wallet_switchEthereumChain",
 	  params: [{ chainId: _chainId }],
@@ -108,7 +185,7 @@ window.walletBridge = {
     try {
       const network = JSON.parse(network_info)
 
-      await window.ethereum 
+      await window.selectedProvider 
         .request({
           method: "wallet_addEthereumChain",
           params: [
@@ -122,7 +199,7 @@ window.walletBridge = {
           ],
         })
 
-        await window.ethereum.request({
+        await window.selectedProvider.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: network.chainId }],
           })
@@ -140,12 +217,12 @@ window.walletBridge = {
     
     try {
 
-      await window.ethereum.request({
+      await window.selectedProvider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: _chainId }],
         })
       
-        await window.ethereum.request({
+        await window.selectedProvider.request({
           method: 'wallet_watchAsset',
           params: {
             type: 'ERC20',
@@ -177,12 +254,12 @@ window.walletBridge = {
     
     try {
 
-      await window.ethereum.request({
+      await window.selectedProvider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: _chainId }],
         })
       
-      var provider = new window.ethers.BrowserProvider(window.ethereum);
+      var provider = new window.ethers.BrowserProvider(window.selectedProvider);
 
       var signer = await provider.getSigner();
       this.transferETH(signer, recipient, amount, success, failure, receiptCallback, callback) 
@@ -234,21 +311,21 @@ window.walletBridge = {
   // CONTRACT READ 
 
   initiateContractRead: async function(_chainId, contract_address, calldata, success, failure, callback) {
-      
+    
     try {
 
-        await window.ethereum.request({
+        await window.selectedProvider.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: _chainId }],
           })
-        
-        var provider = new window.ethers.BrowserProvider(window.ethereum);
+
+        var provider = new window.ethers.BrowserProvider(window.selectedProvider);
 
         const result = await provider.call({
         to: contract_address,
         data: calldata,
         });
-   
+
         success(callback, result.toString()); 
         } 
 		
@@ -265,19 +342,19 @@ window.walletBridge = {
 
   // CONTRACT WRITE 
 
-  initiateContractCall: async function(_chainId, contract_address, calldata, valueEth, success, failure, receiptCallback, callback) {
+  initiateContractCall: async function(_chainId, contract_address, calldata, valueEth, gasLimitOverride, success, failure, receiptCallback, callback) {
     
     try {
 
-      await window.ethereum.request({
+      await window.selectedProvider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: _chainId }],
         })
       
-      var provider = new window.ethers.BrowserProvider(window.ethereum);
+      var provider = new window.ethers.BrowserProvider(window.selectedProvider);
 
       var signer = await provider.getSigner();
-      this.callContractFunction(signer, contract_address, calldata, valueEth, success, failure, receiptCallback, callback) 
+      this.callContractFunction(signer, contract_address, calldata, valueEth, gasLimitOverride, success, failure, receiptCallback, callback) 
           } 
 		
     catch (_error) { 
@@ -287,24 +364,35 @@ window.walletBridge = {
 
   },
 
-  callContractFunction: async function(signer, contract_address, calldata, valueEth, success, failure, receiptCallback, callback) {
+  callContractFunction: async function(signer, contract_address, calldata, valueEth, gasLimitOverride, success, failure, receiptCallback, callback) {
 
     try {
-  
       console.log(calldata)
-      const tx = await signer.sendTransaction({
-        to: contract_address,
-        data: calldata,
-        value: valueEth ? window.ethers.parseEther(valueEth) : 0
-      });
-      
+
+      var tx;
+      if (gasLimitOverride) {
+          tx = await signer.sendTransaction({
+          to: contract_address,
+          data: calldata,
+          gasLimit: gasLimitOverride,
+          value: valueEth ? window.ethers.parseEther(valueEth) : 0
+        })
+      }
+
+      else {
+          tx = await signer.sendTransaction({
+          to: contract_address,
+          data: calldata,
+          value: valueEth ? window.ethers.parseEther(valueEth) : 0
+      })
+      }
       console.log(tx)
       success(callback, tx); 
       
       try {
         const receipt = await tx.wait();
         console.log(receipt)
-        receiptCallback(receipt)
+        receiptCallback(receipt, callback)
       }
       catch (_error) { 
         console.error(_error); 
@@ -328,7 +416,7 @@ window.walletBridge = {
 
   signMessage: async function(message, success, failure, callback) {
     
-    var provider = new window.ethers.BrowserProvider(window.ethereum);
+    var provider = new window.ethers.BrowserProvider(window.selectedProvider);
 	  
     try {
       var signer = await provider.getSigner();
@@ -353,7 +441,7 @@ window.walletBridge = {
   signTyped: async function(_chainId, domainJson, typesJson, valueJson, success, failure, callback) {
     try {
 
-      await window.ethereum.request({
+      await window.selectedProvider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: _chainId }],
         })
@@ -362,7 +450,7 @@ window.walletBridge = {
       const types = JSON.parse(typesJson);
       const value = JSON.parse(valueJson);
 
-      const provider = new window.ethers.BrowserProvider(window.ethereum);
+      const provider = new window.ethers.BrowserProvider(window.selectedProvider);
       const signer = await provider.getSigner();
 
       const signature = await signer.signTypedData(domain, types, value);
@@ -386,7 +474,7 @@ window.walletBridge = {
 	  
     try {
 
-      await window.ethereum.request({
+      await window.selectedProvider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: _chainId }],
         })
@@ -398,7 +486,7 @@ window.walletBridge = {
      
       if (!(_chainId in window.provider)) {
         window.provider[_chainId] = new window.ethers.WebSocketProvider(wss_node)
-        //window.provider[_chainId] = new window.ethers.BrowserProvider(window.ethereum)
+        //window.provider[_chainId] = new window.ethers.BrowserProvider(window.selectedProvider)
       }
 
 
@@ -434,7 +522,7 @@ window.walletBridge = {
 	  
     try {
 
-      await window.ethereum.request({
+      await window.selectedProvider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: _chainId }],
         })
@@ -464,12 +552,12 @@ window.walletBridge = {
   
     try {
 
-      await window.ethereum.request({
+      await window.selectedProvider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: _chainId }],
         })
       
-      var provider = new window.ethers.BrowserProvider(window.ethereum);
+      var provider = new window.ethers.BrowserProvider(window.selectedProvider);
       var contract = new window.ethers.Contract(contract_address, ABI, provider)
 
       if (address === "") {
@@ -520,24 +608,6 @@ window.walletBridge = {
     },
 
 
-    // Parsed event logs (produced by parseLog()) are proxies, which makes
-    // cycling through their fields difficult.  We must access every field
-    // to convert all BigInts into Strings, so they can be read into Godot.
-    deProxify: function (args) {
-
-      try {
-      const result = {};
-      for (const key in args) {
-        result[key] = args[key];
-      }
-        return result;
-    
-      }
-      catch(_error) {
-        console.error(_error)
-      }
-    },
-
 
 
   // BIG INT MATH
@@ -547,7 +617,6 @@ window.walletBridge = {
   bigintArithmetic: function(_number1, _number2, operation) {
 
     try {
-      console.log("hi")
       var number1 = BigInt(_number1);
       var number2 = BigInt(_number2);
 
@@ -571,6 +640,10 @@ window.walletBridge = {
 
       else if (operation == "MULTIPLY") {
           output = (number1 * number2);
+      }
+
+      else if (operation == "MODULO") {
+        output = number1 % number2;
       }
       console.log(output)
       return output.toString()
@@ -669,11 +742,9 @@ getFunctionSelector: function(selectorString) {
 },
 
 
+
+
 };
 
 
-  // Listen for changes from wallet
-  if (window.ethereum) {
-    window.ethereum.on('accountsChanged', window.walletBridge.handleAccountsChanged);
-    window.ethereum.on('chainChanged', window.walletBridge.handleChainChanged);
-  };
+ 
