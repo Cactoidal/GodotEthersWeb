@@ -37,7 +37,7 @@ ___
 
  See [Examples.gd](https://github.com/Cactoidal/GodotEthersWeb/blob/main/addons/cactus.godotethersweb/examples/Examples.gd) for usage examples.
 
-You'll want to create a button that instantiates a Connector scene (see [Connector.gd](addons/cactus.godotethersweb/examples/Connector.gd) and Connector.tscn in the examples), which will automatically detect available wallets and prompt the user to connect.  The user must be connected for most functions to work.  Once the user has connected once, they won't need to connect again (unless they manually disconnect their wallet).  
+You'll want to create a button that instantiates a Connector scene ([example here](https://github.com/Cactoidal/GodotEthersWeb/blob/ef524675621626ba5932d6f266a1f49631128c65/addons/cactus.godotethersweb/examples/Examples.gd#L46)), which will automatically detect available wallets and prompt the user to connect.  The user must be connected for most functions to work.  Once the user has connected once, they won't need to connect again (unless they manually disconnect their wallet).  
 
 You can call `EthersWeb.get_connected_wallet_info()` if you want to display the user address, gas balance, and current chain.
 
