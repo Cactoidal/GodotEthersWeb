@@ -10,7 +10,7 @@ ___
 
 ### A Note on Security
 
-This is experimental, alpha software, in a state of ongoing development, intended for usage on testnets.  
+This is experimental, alpha software, intended for usage on testnets. It is no longer being maintained, and should not be used in production.
 
 ___
 
